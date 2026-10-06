@@ -9,4 +9,7 @@ export type RetrievalRequest = MemoryScope & { readonly query: string; readonly 
 export type RetrievalResponse = { readonly facts: readonly MemoryFactRevision[]; readonly traceId: string };
 export type HealthReport = { readonly status: 'ok' | 'degraded'; readonly checks: Readonly<Record<string, boolean>> };
 
-export const stableId = (...parts: readonly string[]): string => createHash('sha256').update(parts.join('\0')).digest('hex');
+export const stableId = (...parts: readonly string[]): string => {
+  const input = parts.map((part) => `${part.length}:${part}`).join('|');
+  return createHash('sha256').update(input).digest('hex');
+};
