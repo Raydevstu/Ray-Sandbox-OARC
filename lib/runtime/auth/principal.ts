@@ -1,0 +1,15 @@
+import type { RuntimeConfig } from '../config';
+import { ScopeError } from '../errors';
+import type { MemoryScope } from '../contracts';
+
+export type Permission = 'memory:read' | 'memory:write' | 'events:write' | 'jobs:claim' | 'snapshots:write';
+export type Principal = Readonly<{ subject: string; tenantId: string; scopes: ReadonlySet<Permission>; source: 'jwt' | 'dev' | 'service' }>;
+
+export const developmentPrincipal = (config: RuntimeConfig, request: Request): Principal => {
+  if (config.environment === 'production' || !config.allowDevelopmentPrincipal) throw new Error('development principal is disabled');
+  const subject = request.headers.get('x-dev-subject');
+  const tenantId = request.headers.get('x-dev-tenant-id');
+  const scopes = request.headers.get('x-dev-scopes')?.split(/\s+/).filter(Boolean) as Permission[] | undefined;
+  if (!subject || !tenantId || !scopes?.length) throw new Error('development principal requires subject, tenant, and scopes');
+  return { subject, tenantId, scopes: new Set(scopes), source: 'dev' };
+};
