@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BrainCircuit, Database, GitBranch, Layers, Play, Plus, RefreshCw, Search,
   Sparkles, Trash2, TrendingDown, TrendingUp, Minus, MessageSquareQuote, ShieldCheck,
-  ThumbsUp, ThumbsDown, CalendarClock, ImagePlus, X, Network as NetworkIcon,
+  ThumbsUp, ThumbsDown, CalendarClock, ImagePlus, X, Network as NetworkIcon, Inbox,
 } from "lucide-react";
 import { Badge, Button, Card, CardHeader, Empty, Input, Progress, Segmented, Tabs, Textarea, Toggle } from "@/components/ui";
 import { RecallTraceView } from "@/components/memory/RecallTrace";
@@ -20,9 +20,10 @@ import { reflect } from "@/lib/engine/reflect";
 import { buildEntityIndex, entityBoostSignal } from "@/lib/engine/entities";
 import { cn, formatDate, fmtMs, NETWORK_META, timeAgo } from "@/lib/utils";
 import type { FilterNode, MemoryFact, Network, RecallTrace, ReflectResult } from "@/lib/types";
+import { pendingTokens } from "@/lib/engine/session-buffer";
 import { SAMPLE_RETAIN_TEXTS } from "@/lib/data/seed";
 
-type Tab = "retain" | "browser" | "graph" | "recall" | "reflect" | "observations" | "opinions" | "entities";
+type Tab = "retain" | "session" | "browser" | "graph" | "recall" | "reflect" | "observations" | "opinions" | "entities";
 
 export default function MemoryPage() {
   const s = useSandbox();
@@ -77,6 +78,7 @@ export default function MemoryPage() {
         onChange={(t) => setTab(t as Tab)}
         tabs={[
           { id: "retain", label: "Retain" },
+          { id: "session", label: "Session", count: s.sessionBuffer.messages.length },
           { id: "browser", label: "Browser", count: facts.length },
           { id: "graph", label: "Graph" },
           { id: "entities", label: "Entities", count: entityIndex.length },
@@ -88,6 +90,7 @@ export default function MemoryPage() {
       />
 
       {tab === "retain" && <RetainPanel />}
+      {tab === "session" && <SessionPanel />}
       {tab === "browser" && (
         <BrowserPanel
           facts={facts}
@@ -107,6 +110,28 @@ export default function MemoryPage() {
       {tab === "entities" && <EntityStorePanel facts={facts} />}
     </div>
   );
+}
+
+function SessionPanel() {
+  const s = useSandbox();
+  const [role, setRole] = useState<"user" | "assistant" | "system">("user");
+  const [text, setText] = useState("");
+  const buffer = s.sessionBuffer;
+  const add = () => { if (text.trim()) { s.capture(role, text); setText(""); } };
+  return <div className="grid lg:grid-cols-[1fr_360px] gap-4">
+    <Card><CardHeader title="Session capture buffer" subtitle="Strip recalled context before committing conversation memory." icon={<Inbox size={15} />} />
+      <div className="space-y-3"><div className="flex gap-2">{(["user", "assistant", "system"] as const).map((item) => <Button key={item} size="sm" variant={role === item ? "primary" : "outline"} onClick={() => setRole(item)}>{item}</Button>)}</div>
+        <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste a conversation turn…" rows={6} />
+        <div className="flex gap-2"><Button onClick={add}><Plus size={13} /> Buffer message</Button><Button variant="outline" onClick={() => s.commitSession()} disabled={!buffer.messages.length}><Play size={13} /> Commit eligible</Button><Button variant="ghost" onClick={() => s.discardSession()} disabled={!buffer.messages.length}><Trash2 size={13} /> Discard</Button></div>
+      </div>
+    </Card>
+    <Card><CardHeader title="Capture diagnostics" subtitle={`${buffer.policy} policy`} icon={<ShieldCheck size={15} />} />
+      <div className="space-y-3 text-xs"><div className="grid grid-cols-2 gap-2"><div className="metric"><b>{buffer.messages.length}</b><span>pending messages</span></div><div className="metric"><b>{pendingTokens(buffer)}</b><span>pending tokens</span></div></div>
+        {buffer.messages.map((message) => <div key={message.id} className="border border-line rounded-lg p-2"><div className="flex justify-between text-[10px] uppercase text-faint"><span>{message.role}</span><span>{message.tokens} tokens</span></div><p className="text-ink mt-1 line-clamp-3">{message.text}</p>{message.diagnostics.strippedRecallBlocks > 0 && <p className="text-[10px] text-ok mt-1">stripped {message.diagnostics.strippedRecallBlocks} recalled block</p>}</div>)}
+        {!buffer.messages.length && <Empty icon={<Inbox size={24} />} title="Buffer is empty" hint="Capture a turn to inspect it before commit." />}
+      </div>
+    </Card>
+  </div>;
 }
 
 /* ================= Retain ================= */

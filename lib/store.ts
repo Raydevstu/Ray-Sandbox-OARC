@@ -43,6 +43,7 @@ import { retain as doRetain, assignCategories, detectSuperseded } from "@/lib/en
 import { runEvaluation } from "@/lib/engine/evaluate";
 import { recall as doRecall } from "@/lib/engine/recall";
 import { extractEntities } from "@/lib/engine/nlp";
+import { captureMessage, DEFAULT_SESSION_BUFFER, drainBuffer, shouldAutoCommit, pendingTokens, type SessionBuffer } from "@/lib/engine/session-buffer";
 
 function extractEntitiesSafe(text: string): string[] {
   try {
@@ -190,6 +191,7 @@ export interface SandboxState {
   evalSets: { id: string; name: string; description: string; questions: EvalQuestion[] }[];
   webhooks: Webhook[];
   webhookDeliveries: WebhookDelivery[];
+  sessionBuffer: SessionBuffer;
 
   // actions
   setHydrated: () => void;
@@ -198,6 +200,9 @@ export interface SandboxState {
   updateBank: (id: string, patch: Partial<Bank>) => void;
   updateBankCategories: (bankId: string, cats: CategoryDef[]) => void;
   retain: (content: string, opts?: RetainOpts) => { factCount: number; steeredOut: number };
+  capture: (role: "user" | "assistant" | "system", content: string) => { buffered: boolean; autoCommitted: boolean };
+  commitSession: () => { factCount: number; messageCount: number };
+  discardSession: () => void;
   updateFact: (id: string, patch: { text?: string; tags?: string[]; categories?: string[]; scopes?: Partial<MemoryScopes>; metadata?: Record<string, string>; note?: string }) => { ok: boolean; error?: string };
   batchUpdateFacts: (ids: string[], patch: { tags?: string[]; categories?: string[]; note?: string }) => number;
   toggleImmutable: (id: string) => void;
@@ -359,6 +364,7 @@ export const useSandbox = create<SandboxState>()(
         },
       ],
       webhookDeliveries: [],
+      sessionBuffer: DEFAULT_SESSION_BUFFER,
 
       setHydrated: () => set({ hydrated: true }),
       setActiveBank: (id) => set({ activeBankId: id }),
@@ -475,6 +481,31 @@ export const useSandbox = create<SandboxState>()(
           tokens: facts.reduce((a, f) => a + f.tokens, 0) + countTokens(content),
         });
         return { factCount: facts.length, steeredOut };
+      },
+
+      capture: (role, content) => {
+        const next = captureMessage(get().sessionBuffer, role, content);
+        set({ sessionBuffer: next });
+        const autoCommitted = shouldAutoCommit(next);
+        if (autoCommitted) get().commitSession();
+        return { buffered: next.messages.length > 0 && !autoCommitted, autoCommitted };
+      },
+
+      commitSession: () => {
+        const current = get().sessionBuffer;
+        const { content, remainder } = drainBuffer(current);
+        if (!content) return { factCount: 0, messageCount: 0 };
+        const messageCount = current.messages.length - remainder.messages.length;
+        const result = get().retain(content, { metadata: { capture_source: "session-buffer", captured_messages: String(messageCount) } });
+        set({ sessionBuffer: remainder });
+        get().logEvent({ app: "memory", op: "retain", message: `session commit → ${messageCount} message(s), ${pendingTokens(remainder)} token(s) remain buffered` });
+        return { factCount: result.factCount, messageCount };
+      },
+
+      discardSession: () => {
+        const count = get().sessionBuffer.messages.length;
+        set({ sessionBuffer: DEFAULT_SESSION_BUFFER });
+        get().logEvent({ app: "memory", op: "system", message: `session buffer discarded (${count} message(s))` });
       },
 
       updateFact: (id, patch) => {
@@ -969,6 +1000,7 @@ export const useSandbox = create<SandboxState>()(
       },
       migrate: (persisted, version) => {
         const state = persisted as Partial<SandboxState>;
+        state.sessionBuffer = state.sessionBuffer ? { ...DEFAULT_SESSION_BUFFER, ...state.sessionBuffer } : DEFAULT_SESSION_BUFFER;
         if (version < 2) {
           state.facts = (state.facts ?? []).map((f) => ({
             ...f,
