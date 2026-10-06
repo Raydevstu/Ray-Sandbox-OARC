@@ -1,0 +1,17 @@
+CREATE TABLE tenants (id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
+CREATE TABLE banks (id TEXT NOT NULL, tenant_id TEXT NOT NULL REFERENCES tenants(id), created_at TEXT NOT NULL, PRIMARY KEY (tenant_id, id));
+CREATE TABLE facts (id TEXT NOT NULL, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, revision INTEGER NOT NULL, claim TEXT NOT NULL, confidence REAL NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (tenant_id, bank_id, id, revision));
+CREATE TABLE evidence (id TEXT NOT NULL, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, source TEXT NOT NULL, content TEXT NOT NULL, provenance TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (tenant_id, bank_id, id));
+CREATE TABLE entities (id TEXT NOT NULL, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, label TEXT NOT NULL, PRIMARY KEY (tenant_id, bank_id, id));
+CREATE TABLE edges (id TEXT NOT NULL, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, from_entity TEXT NOT NULL, to_entity TEXT NOT NULL, relation TEXT NOT NULL, PRIMARY KEY (tenant_id, bank_id, id));
+CREATE TABLE layers (id TEXT NOT NULL, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (tenant_id, bank_id, id));
+CREATE TABLE events (id TEXT NOT NULL, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, type TEXT NOT NULL, payload TEXT NOT NULL, occurred_at TEXT NOT NULL, PRIMARY KEY (tenant_id, bank_id, id));
+CREATE TABLE outbox (id TEXT NOT NULL, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, event_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, status TEXT NOT NULL, PRIMARY KEY (tenant_id, bank_id, id), UNIQUE (tenant_id, idempotency_key));
+CREATE TABLE jobs (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, status TEXT NOT NULL);
+CREATE TABLE feedback (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, value TEXT NOT NULL);
+CREATE TABLE snapshots (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE retrieval_traces (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, query TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX facts_scope_idx ON facts (tenant_id, bank_id);
+CREATE INDEX evidence_scope_idx ON evidence (tenant_id, bank_id);
+CREATE INDEX events_scope_idx ON events (tenant_id, bank_id);
+CREATE INDEX outbox_scope_idx ON outbox (tenant_id, bank_id);
