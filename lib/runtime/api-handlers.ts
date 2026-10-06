@@ -20,3 +20,8 @@ export const createRecallHandler = (repository: CanonicalRepository) => async (r
   catch (error) { const message = error instanceof z.ZodError ? 'invalid recall request' : error instanceof Error ? error.message : 'recall request failed'; return NextResponse.json({ ok: false, requestId, error: message, retryable: false }, { status: message.includes('scope') ? 403 : 400 }); }
 };
 
+export const readScope = async (request: Request): Promise<{ tenantId: string; bankId: string }> => {
+  const body = await request.clone().json() as { tenantId?: unknown; bankId?: unknown };
+  if (typeof body.tenantId !== 'string' || typeof body.bankId !== 'string') throw new Error('invalid runtime scope');
+  return { tenantId: body.tenantId, bankId: body.bankId };
+};
