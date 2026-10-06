@@ -22,6 +22,7 @@ import { recall as doRecall } from "@/lib/engine/recall";
 import { reflect as doReflect } from "@/lib/engine/reflect";
 import { buildEntityIndex } from "@/lib/engine/entities";
 import { embed, cosine } from "@/lib/engine/nlp";
+import { buildAdapterExamples } from "@/lib/integrations/adapters";
 
 const WEBHOOK_EVENTS: WebhookEvent[] = [
   "memory.retained",
@@ -33,7 +34,7 @@ const WEBHOOK_EVENTS: WebhookEvent[] = [
   "*",
 ];
 
-type Tab = "rest" | "zapier" | "n8n" | "langgraph" | "mcp" | "webhooks" | "observability";
+type Tab = "rest" | "zapier" | "n8n" | "langgraph" | "mcp" | "webhooks" | "observability" | "events";
 
 export default function IntegrationsPage() {
   const [tab, setTab] = useState<Tab>("rest");
@@ -68,6 +69,7 @@ export default function IntegrationsPage() {
           { id: "langgraph", label: "LangGraph" },
           { id: "webhooks", label: "Webhooks", count: s.webhookDeliveries.length },
           { id: "observability", label: "Observability" },
+          { id: "events", label: "Event Lab", count: s.integrationEvents.length },
         ]}
       />
 
@@ -78,6 +80,48 @@ export default function IntegrationsPage() {
       {tab === "langgraph" && <LangGraphTab />}
       {tab === "webhooks" && <WebhooksTab />}
       {tab === "observability" && <ObservabilityTab />}
+      {tab === "events" && <EventLabTab />}
+    </div>
+  );
+}
+
+function EventLabTab() {
+  const s = useSandbox();
+  const [selectedFact, setSelectedFact] = useState(s.facts[0]?.id ?? "");
+  const event = s.integrationEvents[0];
+  const examples = event ? buildAdapterExamples(event) : [];
+  const projection = s.projectFilesystem();
+  return (
+    <div className="grid lg:grid-cols-2 gap-4">
+      <div className="space-y-4">
+        <Card>
+          <CardHeader title="Canonical event stream" subtitle={`${s.integrationEvents.length} versioned events · ${s.offlineQueue.length} queued`} icon={<Radio size={15} />} />
+          <div className="space-y-1.5 max-h-64 overflow-y-auto">
+            {s.integrationEvents.slice(0, 12).map((item) => <div key={item.id} className="rounded-lg border border-border-soft bg-surface-2 p-2 text-[10.5px] font-mono"><span className="text-accent">{item.type}</span> · {item.id}<br /><span className="text-faint">{item.provenance.source} · {item.at}</span></div>)}
+            {!s.integrationEvents.length && <Empty title="No canonical events yet" hint="Run a retain or recall operation to populate the stream." />}
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Outcome feedback" subtitle="Feedback remains append-only and tied to a real fact" icon={<Check size={15} />} />
+          <Select value={selectedFact} onChange={(e) => setSelectedFact(e.target.value)} className="mb-2"><option value="">Select a memory</option>{s.facts.slice(0, 40).map((fact) => <option key={fact.id} value={fact.id}>{fact.text.slice(0, 70)}</option>)}</Select>
+          <div className="flex gap-2"><Button size="sm" variant="outline" disabled={!selectedFact} onClick={() => s.recordMemoryFeedback(selectedFact, "up", "useful recall")}><Check size={12} /> Helpful</Button><Button size="sm" variant="outline" disabled={!selectedFact} onClick={() => s.recordMemoryFeedback(selectedFact, "down", "not useful")}><Trash2 size={12} /> Not useful</Button><Button size="sm" variant="outline" disabled={!selectedFact} onClick={() => s.recordMemoryFeedback(selectedFact, "correction", "needs correction")}><Workflow size={12} /> Correction</Button></div>
+          <p className="text-[10.5px] text-faint mt-2">{s.feedbackRecords.length} feedback records stored locally.</p>
+        </Card>
+      </div>
+      <div className="space-y-4">
+        <Card>
+          <CardHeader title="Offline queue simulator" subtitle="FIFO replay with explicit simulated failures" icon={<Workflow size={15} />} right={<Button size="sm" variant="outline" disabled={!s.offlineQueue.length} onClick={() => s.replayOfflineQueue()}>{s.offlineQueue.length ? "Replay queue" : "Queue empty"}</Button>} />
+          <p className="text-[11px] text-muted">Queued events are bounded, deduplicated by event ID, and removed only after simulated delivery.</p>
+        </Card>
+        <Card>
+          <CardHeader title="Filesystem projection" subtitle={`${projection.files.length} downloadable files · deterministic paths`} icon={<Download size={15} />} right={<Button size="sm" variant="outline" onClick={() => downloadBlob(projection.manifest, `memory-${s.activeBankId}-manifest.json`, "application/json")}>Download manifest</Button>} />
+          <div className="space-y-1 max-h-36 overflow-y-auto">{projection.files.slice(0, 12).map((file) => <div key={file.path} className="text-[10.5px] font-mono text-muted">{file.path} <span className="text-faint">← {file.sourceFactIds.join(", ")}</span></div>)}</div>
+        </Card>
+        <Card>
+          <CardHeader title="Adapter examples" subtitle={event ? `derived from ${event.id}` : "Run an operation to generate examples"} icon={<Plug size={15} />} />
+          <div className="space-y-2">{examples.map((example) => <CodeBlock key={example.name} code={JSON.stringify(example.payload, null, 2)} lang="json" title={`${example.name} · simulated`} />)}</div>
+        </Card>
+      </div>
     </div>
   );
 }

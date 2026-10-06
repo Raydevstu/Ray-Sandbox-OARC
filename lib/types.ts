@@ -301,6 +301,38 @@ export interface RecallCandidate {
   selectedLayer?: "l0" | "l1" | "l2";
 }
 
+export type IntegrationEventType = "memory.retained" | "memory.recalled" | "memory.reflected" | "memory.feedback" | "eval.completed" | "pipeline.run";
+
+export interface CanonicalIntegrationEvent {
+  id: string;
+  version: 1;
+  type: IntegrationEventType;
+  at: string;
+  payload: Record<string, unknown>;
+  provenance: { app: string; source: string; traceId?: string };
+}
+
+export type FeedbackOutcome = "up" | "down" | "correction";
+
+export interface FeedbackRecord {
+  id: string;
+  factId: string;
+  outcome: FeedbackOutcome;
+  note: string;
+  at: string;
+  source: "user" | "agent";
+}
+
+export type QueueStatus = "pending" | "failed";
+
+export interface OfflineQueueEntry {
+  id: string;
+  event: CanonicalIntegrationEvent;
+  status: QueueStatus;
+  attempts: number;
+  error?: string;
+}
+
 export interface TemporalWindow {
   start: string;
   end: string;

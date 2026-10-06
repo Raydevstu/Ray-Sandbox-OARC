@@ -33,6 +33,9 @@ import type {
   Webhook,
   WebhookDelivery,
   WebhookEvent,
+  CanonicalIntegrationEvent,
+  FeedbackRecord,
+  OfflineQueueEntry,
 } from "@/lib/types";
 import { countTokens, rng, uid } from "@/lib/utils";
 import { buildSeedFacts, buildSeedLinks, DEFAULT_CATEGORIES, seedBank, seedBank2, seedObservations, seedOpinions, seedOpsSeries } from "@/lib/data/seed";
@@ -45,6 +48,10 @@ import { recall as doRecall } from "@/lib/engine/recall";
 import { extractEntities } from "@/lib/engine/nlp";
 import { captureMessage, DEFAULT_SESSION_BUFFER, drainBuffer, shouldAutoCommit, pendingTokens, type SessionBuffer } from "@/lib/engine/session-buffer";
 import { createSnapshot, diffSnapshots, rebuildIndexes, type MemorySnapshot, type SnapshotData, type SnapshotDiff, type RebuildReport } from "@/lib/engine/snapshots";
+import { normalizeSandboxEvent } from "@/lib/engine/integration-events";
+import { recordFeedback } from "@/lib/engine/feedback";
+import { enqueueEvent, replayQueue } from "@/lib/engine/offline-queue";
+import { buildFilesystemProjection, type FilesystemProjection } from "@/lib/engine/projection";
 
 function extractEntitiesSafe(text: string): string[] {
   try {
@@ -194,6 +201,9 @@ export interface SandboxState {
   webhookDeliveries: WebhookDelivery[];
   sessionBuffer: SessionBuffer;
   snapshots: MemorySnapshot[];
+  integrationEvents: CanonicalIntegrationEvent[];
+  feedbackRecords: FeedbackRecord[];
+  offlineQueue: OfflineQueueEntry[];
 
   // actions
   setHydrated: () => void;
@@ -209,6 +219,9 @@ export interface SandboxState {
   diffSnapshot: (id: string) => SnapshotDiff | null;
   restoreSnapshot: (id: string) => boolean;
   rebuildIndexes: () => RebuildReport;
+  recordMemoryFeedback: (factId: string, outcome: FeedbackRecord["outcome"], note?: string) => { ok: boolean; error?: string };
+  replayOfflineQueue: (failEventIds?: string[]) => { delivered: number; errors: string[] };
+  projectFilesystem: () => FilesystemProjection;
   updateFact: (id: string, patch: { text?: string; tags?: string[]; categories?: string[]; scopes?: Partial<MemoryScopes>; metadata?: Record<string, string>; note?: string }) => { ok: boolean; error?: string };
   batchUpdateFacts: (ids: string[], patch: { tags?: string[]; categories?: string[]; note?: string }) => number;
   toggleImmutable: (id: string) => void;
@@ -372,6 +385,9 @@ export const useSandbox = create<SandboxState>()(
       webhookDeliveries: [],
       sessionBuffer: DEFAULT_SESSION_BUFFER,
       snapshots: [],
+      integrationEvents: [],
+      feedbackRecords: [],
+      offlineQueue: [],
 
       setHydrated: () => set({ hydrated: true }),
       setActiveBank: (id) => set({ activeBankId: id }),
@@ -546,6 +562,22 @@ export const useSandbox = create<SandboxState>()(
         const report = rebuildIndexes({ banks: s.banks, facts: s.facts, links: s.links, observations: s.observations, opinions: s.opinions, evalRuns: s.evalRuns });
         get().logEvent({ app: "system", op: "system", message: `indexes rebuilt: ${report.factCount} facts, ${report.entityCount} entities` });
         return report;
+      },
+      recordMemoryFeedback: (factId, outcome, note) => {
+        const fact = get().facts.find((item) => item.id === factId);
+        if (!fact) return { ok: false, error: `Memory fact not found: ${factId}` };
+        set((s) => ({ feedbackRecords: recordFeedback({ factId, outcome, note }, s.feedbackRecords) }));
+        get().logEvent({ app: "memory", op: "system", message: `feedback recorded: ${outcome} for ${factId}` });
+        return { ok: true };
+      },
+      replayOfflineQueue: (failEventIds = []) => {
+        const result = replayQueue(get().offlineQueue, { failEventIds });
+        set({ offlineQueue: result.queue });
+        return { delivered: result.delivered.length, errors: result.errors };
+      },
+      projectFilesystem: () => {
+        const s = get();
+        return buildFilesystemProjection({ bankId: s.activeBankId, bankName: s.banks.find((b) => b.id === s.activeBankId)?.name ?? "Unknown", facts: s.facts.filter((f) => f.bankId === s.activeBankId).map((f) => ({ id: f.id, text: f.text, entities: f.entities, tags: f.tags })) });
       },
 
       updateFact: (id, patch) => {
@@ -982,9 +1014,12 @@ export const useSandbox = create<SandboxState>()(
               },
               status: "simulated-200" as const,
             }));
+          const canonical = normalizeSandboxEvent(event);
           return {
             events: [event, ...s.events].slice(0, 120),
             webhookDeliveries: [...deliveries, ...s.webhookDeliveries].slice(0, 60),
+            integrationEvents: [canonical, ...s.integrationEvents].slice(0, 200),
+            offlineQueue: enqueueEvent(s.offlineQueue, canonical),
           };
         }),
 
@@ -1013,6 +1048,9 @@ export const useSandbox = create<SandboxState>()(
           evalSets: [{ id: "set-seed", name: "Seed storyline (built-in)", description: "14 questions across 5 groups generated around the demo bank's memories.", questions: SEED_EVALSET }],
           webhooks: [],
           webhookDeliveries: [],
+          integrationEvents: [],
+          feedbackRecords: [],
+          offlineQueue: [],
         });
         get().logEvent({ app: "system", op: "system", message: "Demo data reset to seed state" });
       },
@@ -1042,6 +1080,9 @@ export const useSandbox = create<SandboxState>()(
         const state = persisted as Partial<SandboxState>;
         state.sessionBuffer = state.sessionBuffer ? { ...DEFAULT_SESSION_BUFFER, ...state.sessionBuffer } : DEFAULT_SESSION_BUFFER;
         state.snapshots = state.snapshots ?? [];
+        state.integrationEvents = state.integrationEvents ?? [];
+        state.feedbackRecords = state.feedbackRecords ?? [];
+        state.offlineQueue = state.offlineQueue ?? [];
         if (version < 2) {
           state.facts = (state.facts ?? []).map((f) => ({
             ...f,
