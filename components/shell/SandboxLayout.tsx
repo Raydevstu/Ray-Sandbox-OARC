@@ -90,7 +90,7 @@ export default function SandboxLayout({ children }: { children: React.ReactNode 
             </span>
             {!collapsed && (
               <span className="font-bold text-sm tracking-tight text-ink truncate">
-                Hindsight <span className="text-accent">Sandbox</span>
+                Ray <span className="text-accent">Sandbox OARC</span>
               </span>
             )}
           </Link>

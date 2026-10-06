@@ -186,7 +186,7 @@ export default function SettingsPage() {
         <CardHeader title="About" icon={<Settings2 size={15} />} />
         <div className="text-[12.5px] text-muted leading-relaxed space-y-2">
           <p>
-            <b className="text-ink">Hindsight Sandbox</b> is an open-source (MIT) study environment modeled on the
+            <b className="text-ink">Ray Sandbox OARC</b> is an open-source (MIT) study environment modeled on the
             Hindsight agent-memory architecture: four networks (world, experience, observation, opinion), three
             operations (retain, recall, reflect), a temporal entity graph with four link types, four-arm retrieval
             with RRF fusion, cross-encoder reranking, token-budget packing, evidence-grounded observation
