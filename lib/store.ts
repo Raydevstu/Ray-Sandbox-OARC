@@ -44,6 +44,7 @@ import { runEvaluation } from "@/lib/engine/evaluate";
 import { recall as doRecall } from "@/lib/engine/recall";
 import { extractEntities } from "@/lib/engine/nlp";
 import { captureMessage, DEFAULT_SESSION_BUFFER, drainBuffer, shouldAutoCommit, pendingTokens, type SessionBuffer } from "@/lib/engine/session-buffer";
+import { createSnapshot, diffSnapshots, rebuildIndexes, type MemorySnapshot, type SnapshotData, type SnapshotDiff, type RebuildReport } from "@/lib/engine/snapshots";
 
 function extractEntitiesSafe(text: string): string[] {
   try {
@@ -192,6 +193,7 @@ export interface SandboxState {
   webhooks: Webhook[];
   webhookDeliveries: WebhookDelivery[];
   sessionBuffer: SessionBuffer;
+  snapshots: MemorySnapshot[];
 
   // actions
   setHydrated: () => void;
@@ -203,6 +205,10 @@ export interface SandboxState {
   capture: (role: "user" | "assistant" | "system", content: string) => { buffered: boolean; autoCommitted: boolean };
   commitSession: () => { factCount: number; messageCount: number };
   discardSession: () => void;
+  createSnapshot: (name: string, reason?: string) => MemorySnapshot;
+  diffSnapshot: (id: string) => SnapshotDiff | null;
+  restoreSnapshot: (id: string) => boolean;
+  rebuildIndexes: () => RebuildReport;
   updateFact: (id: string, patch: { text?: string; tags?: string[]; categories?: string[]; scopes?: Partial<MemoryScopes>; metadata?: Record<string, string>; note?: string }) => { ok: boolean; error?: string };
   batchUpdateFacts: (ids: string[], patch: { tags?: string[]; categories?: string[]; note?: string }) => number;
   toggleImmutable: (id: string) => void;
@@ -365,6 +371,7 @@ export const useSandbox = create<SandboxState>()(
       ],
       webhookDeliveries: [],
       sessionBuffer: DEFAULT_SESSION_BUFFER,
+      snapshots: [],
 
       setHydrated: () => set({ hydrated: true }),
       setActiveBank: (id) => set({ activeBankId: id }),
@@ -506,6 +513,39 @@ export const useSandbox = create<SandboxState>()(
         const count = get().sessionBuffer.messages.length;
         set({ sessionBuffer: DEFAULT_SESSION_BUFFER });
         get().logEvent({ app: "memory", op: "system", message: `session buffer discarded (${count} message(s))` });
+      },
+
+      createSnapshot: (name, reason) => {
+        const s = get();
+        const data: SnapshotData = { banks: s.banks, facts: s.facts, links: s.links, observations: s.observations, opinions: s.opinions, evalRuns: s.evalRuns };
+        const snapshot = createSnapshot(name, data, reason);
+        set((state) => ({ snapshots: [snapshot, ...state.snapshots].slice(0, 20) }));
+        get().logEvent({ app: "system", op: "system", message: `snapshot created: ${snapshot.name} (${snapshot.checksum})` });
+        return snapshot;
+      },
+
+      diffSnapshot: (id) => {
+        const snapshot = get().snapshots.find((item) => item.id === id);
+        if (!snapshot) return null;
+        const s = get();
+        return diffSnapshots(snapshot.data, { banks: s.banks, facts: s.facts, links: s.links, observations: s.observations, opinions: s.opinions, evalRuns: s.evalRuns });
+      },
+
+      restoreSnapshot: (id) => {
+        const snapshot = get().snapshots.find((item) => item.id === id);
+        if (!snapshot) return false;
+        const current = get();
+        const safety = createSnapshot(`pre-restore-${new Date().toISOString()}`, { banks: current.banks, facts: current.facts, links: current.links, observations: current.observations, opinions: current.opinions, evalRuns: current.evalRuns }, "automatic restore safety snapshot");
+        set({ ...snapshot.data, snapshots: [safety, ...current.snapshots] });
+        get().logEvent({ app: "system", op: "system", message: `restored snapshot: ${snapshot.name}; safety snapshot preserved` });
+        return true;
+      },
+
+      rebuildIndexes: () => {
+        const s = get();
+        const report = rebuildIndexes({ banks: s.banks, facts: s.facts, links: s.links, observations: s.observations, opinions: s.opinions, evalRuns: s.evalRuns });
+        get().logEvent({ app: "system", op: "system", message: `indexes rebuilt: ${report.factCount} facts, ${report.entityCount} entities` });
+        return report;
       },
 
       updateFact: (id, patch) => {
@@ -1001,6 +1041,7 @@ export const useSandbox = create<SandboxState>()(
       migrate: (persisted, version) => {
         const state = persisted as Partial<SandboxState>;
         state.sessionBuffer = state.sessionBuffer ? { ...DEFAULT_SESSION_BUFFER, ...state.sessionBuffer } : DEFAULT_SESSION_BUFFER;
+        state.snapshots = state.snapshots ?? [];
         if (version < 2) {
           state.facts = (state.facts ?? []).map((f) => ({
             ...f,
