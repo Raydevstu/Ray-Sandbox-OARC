@@ -503,4 +503,5 @@ export interface UiSettings {
   animations: boolean;
   gridOpacity: number;
   showTraceDetails: boolean;
+  runtimeMode: import("@/lib/runtime/ui-mode").UiRuntimeMode;
 }

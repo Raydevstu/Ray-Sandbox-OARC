@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { Badge, Button, Card, CardHeader, Empty, Input, Progress, Segmented, Tabs, Textarea, Toggle } from "@/components/ui";
 import { RecallTraceView } from "@/components/memory/RecallTrace";
+import { RuntimeStatus } from "@/components/memory/RuntimeStatus";
+import { RepairPanel } from "@/components/memory/RepairPanel";
 import { MemoryGraph, type GraphSelection } from "@/components/memory/MemoryGraph";
 import { FilterBuilder } from "@/components/memory/FilterBuilder";
 import { matchesFilters, validateFilters } from "@/lib/engine/filters";
@@ -791,6 +793,7 @@ function RecallPanel({
 
   return (
     <div className="space-y-4">
+      <RuntimeStatus mode={s.ui.runtimeMode} />
       <Card>
         <CardHeader
           title="Recall(B, Q, k) → {f₁…fₙ}"
@@ -848,6 +851,7 @@ function RecallPanel({
         )}
       </Card>
       {trace && <RecallTraceView trace={trace} />}
+      {trace && <p className="text-[10px] text-faint px-1">Trace mode: {s.ui.runtimeMode}. Runtime mode is not enabled by fallback; this panel currently executes the local deterministic engine.</p>}
       {!trace && (
         <Card>
           <Empty

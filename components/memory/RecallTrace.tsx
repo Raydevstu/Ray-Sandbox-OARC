@@ -214,6 +214,25 @@ export function RecallTraceView({ trace }: { trace: Trace }) {
           )}
         </Card>
       )}
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="text-sm font-semibold text-ink">Citations</h3>
+            <p className="text-[11px] text-faint">Selected memories are the evidence surface for this deterministic trace.</p>
+          </div>
+          <span className="chip font-mono">{trace.selected.length} source(s)</span>
+        </div>
+        <div className="space-y-1.5">
+          {trace.selected.map((candidate, index) => (
+            <div key={candidate.fact.id} className="rounded-lg border border-border-soft bg-surface-2 px-3 py-2 text-xs">
+              <span className="font-mono text-accent mr-2">[{index + 1}]</span>
+              <span className="text-ink">{candidate.fact.text}</span>
+              <span className="block text-[10px] text-faint mt-1 font-mono">{candidate.fact.id} · score {candidate.finalScore.toFixed(3)}</span>
+            </div>
+          ))}
+          {!trace.selected.length && <p className="text-xs text-muted italic">No sources selected.</p>}
+        </div>
+      </Card>
     </div>
   );
 }

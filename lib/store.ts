@@ -91,6 +91,7 @@ export const DEFAULT_UI: UiSettings = {
   animations: true,
   gridOpacity: 0.6,
   showTraceDetails: true,
+  runtimeMode: "deterministic",
 };
 
 function defaultLearning(): LearningState {
