@@ -33,6 +33,18 @@ export interface FactRevision {
   note: string;
 }
 
+export type TemporalMemoryType = "event" | "state" | "plan" | "preference" | "relationship" | "absence";
+export type TemporalStatus = "ongoing" | "completed" | "planned" | "unknown";
+export type TemporalPrecision = "year" | "month" | "day" | "datetime" | "relative" | "unknown";
+
+export interface TemporalMetadata {
+  type: TemporalMemoryType;
+  status: TemporalStatus;
+  precision: TemporalPrecision;
+  confidence: number;
+  sourceText?: string;
+}
+
 /** A memory unit f = (u, b, t, v, τs, τe, τm, ℓ, c, x) from the paper. */
 export interface MemoryFact {
   id: string;
@@ -58,6 +70,10 @@ export interface MemoryFact {
   verbatim?: boolean; // stored with infer=false
   expiresAt?: string | null; // TTL — excluded from recall once past
   supersedes?: string | null; // ADD-only mode: id of the older fact this updates
+  temporalMeta?: TemporalMetadata;
+  abstract?: string;
+  overview?: string;
+  detail?: string;
   feedback?: { up: number; down: number };
   attachment?: MemoryAttachment | null; // visual/multimodal memory
 }
@@ -282,6 +298,7 @@ export interface RecallCandidate {
   finalScore: number;
   included: boolean;
   tokens: number;
+  selectedLayer?: "l0" | "l1" | "l2";
 }
 
 export interface TemporalWindow {
@@ -292,6 +309,8 @@ export interface TemporalWindow {
 
 export interface RecallTrace {
   query: string;
+  temporalIntent?: "none" | "current" | "historical" | "event" | "plan";
+  historyPolicy?: "current" | "historical" | "all";
   window: TemporalWindow | null;
   arms: {
     semantic: ArmHit[];
@@ -305,6 +324,17 @@ export interface RecallTrace {
   maxTokens: number;
   latencyMs: number;
   recallBudget: number;
+  layerTokens?: { l0: number; l1: number; l2: number };
+  digest?: RecallDigest;
+}
+
+export interface RecallDigest {
+  mode: "deterministic";
+  bullets: Array<{ text: string; factIds: string[]; confidence: number }>;
+  suppressed: boolean;
+  reason?: string;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 /* ---------------- reflect ---------------- */

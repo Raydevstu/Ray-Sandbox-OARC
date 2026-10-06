@@ -13,6 +13,8 @@
 import type { CategoryDef, CausalRelation, GraphLink, MemoryFact, MemoryScopes, Network } from "@/lib/types";
 import { countTokens, uid } from "@/lib/utils";
 import { CAUSAL_CUES, detectCausal, embed, cosine, extractDateMentions, extractEntities, tokenize } from "./nlp";
+import { deriveTemporalMetadata } from "./temporal";
+import { buildMemoryLayers } from "./layers";
 
 const OPINION_CUES =
   /\b(i think|i believe|in my view|i feel|prefers?|prefer|love[sd]?|hate[sd]?|best|better|worse|should|opinion|favorite|favourite)\b/i;
@@ -135,6 +137,7 @@ export function extractFacts(content: string, opts: RetainOptions): { facts: Mem
   ): MemoryFact => {
     const entities = verbatim ? extractEntities(text) : extractEntities(text);
     const dates = extractDateMentions(text, now.getFullYear()) ?? occurred;
+    const layers = buildMemoryLayers(text);
     return {
       id: uid("fact"),
       bankId: opts.bankId,
@@ -162,6 +165,10 @@ export function extractFacts(content: string, opts: RetainOptions): { facts: Mem
       categories: assignCategories(text, catalog),
       metadata: opts.metadata ?? {},
       history: [],
+      temporalMeta: deriveTemporalMetadata(text),
+      abstract: layers.l0,
+      overview: layers.l1,
+      detail: layers.l2,
       verbatim,
     };
   };
