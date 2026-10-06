@@ -22,11 +22,25 @@ describe('runtime authorization', () => {
     const token = `eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0.${Buffer.from(JSON.stringify({ sub: 's', tenant_id: 't1', iss: 'wrong' })).toString('base64url')}.AA`;
     await expect(authenticateJwt(token, { ...config, jwtIssuer: 'expected', jwksUrl: 'http://jwks' })).rejects.toThrow('invalid JWT claims');
   });
+  it('rejects a JWT without exp', async () => {
+    const token = `eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0.${Buffer.from(JSON.stringify({ sub: 's', tenant_id: 't1', iss: 'expected' })).toString('base64url')}.AA`;
+    await expect(authenticateJwt(token, { ...config, jwtIssuer: 'expected', jwksUrl: 'http://jwks' })).rejects.toThrow('exp');
+  });
+  it('accepts a signed JWT with a future exp', async () => {
+    const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const jwk = publicKey.export({ format: 'jwk' }) as { kty: string; n: string; e: string };
+    const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'k1' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ sub: 's', tenant_id: 't1', iss: 'expected', exp: Math.floor(Date.now() / 1000) + 300, scope: 'memory:read' })).toString('base64url');
+    const signingInput = `${header}.${payload}`;
+    const signature = sign('RSA-SHA256', Buffer.from(signingInput), privateKey).toString('base64url');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ keys: [{ ...jwk, kid: 'k1' }] }), { status: 200 })));
+    await expect(authenticateJwt(`${signingInput}.${signature}`, { ...config, jwtIssuer: 'expected', jwksUrl: 'http://jwks' })).resolves.toMatchObject({ subject: 's', tenantId: 't1', source: 'jwt' });
+  });
   it('rejects an invalid JWT signature', async () => {
     const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
     const jwk = publicKey.export({ format: 'jwk' }) as { kty: string; n: string; e: string };
     const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'k1' })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({ sub: 's', tenant_id: 't1', iss: 'expected' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ sub: 's', tenant_id: 't1', iss: 'expected', exp: Math.floor(Date.now() / 1000) + 300 })).toString('base64url');
     const badSignature = sign('RSA-SHA256', Buffer.from('different'), privateKey).toString('base64url');
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ keys: [{ ...jwk, kid: 'k1' }] }), { status: 200 })));
     await expect(authenticateJwt(`${header}.${payload}.${badSignature}`, { ...config, jwtIssuer: 'expected', jwksUrl: 'http://jwks' })).rejects.toThrow('invalid JWT signature');

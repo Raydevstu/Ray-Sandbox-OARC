@@ -19,7 +19,7 @@ export const authenticateJwt = async (token: string, config: RuntimeConfig): Pro
   const parsed = claim(token);
   if (parsed.header.alg !== 'RS256') throw new Error('unsupported JWT algorithm');
   const claims = parsed.payload;
-  if (claims.iss !== config.jwtIssuer || (claims.exp !== undefined && claims.exp <= Math.floor(Date.now() / 1000))) throw new Error('invalid JWT claims');
+  if (claims.iss !== config.jwtIssuer || claims.exp === undefined || claims.exp <= Math.floor(Date.now() / 1000)) throw new Error('invalid JWT claims: exp is required and must be in the future');
   const response = await fetch(config.jwksUrl);
   if (!response.ok) throw new Error('unable to load JWKS');
   const keys = (await response.json()) as Jwks;

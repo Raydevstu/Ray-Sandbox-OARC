@@ -12,3 +12,6 @@ export interface CanonicalRepository {
   getByIdempotencyKey(scope: MemoryScope, key: string): Promise<EventRecord | undefined>;
   writeSnapshot(snapshot: Snapshot): Promise<void>;
 }
+
+export type SqlExecutor = (query: string, params: readonly unknown[]) => Promise<readonly Record<string, unknown>[]>;
+export type TransactionExecutor = <T>(operation: (execute: SqlExecutor) => Promise<T>) => Promise<T>;
