@@ -25,8 +25,12 @@ const executeWithPool = (currentPool: Pool): SqlExecutor => async (query, params
 
 export const createRuntimeRepository = (scope: MemoryScope): CanonicalRepository => new PostgresRepository(executeWithPool(getPool()), scope);
 
-export const checkRuntimeStore = async (): Promise<'not_configured' | 'healthy' | 'unavailable'> => {
-  if (!isRuntimeStoreConfigured()) return 'not_configured';
-  try { await getPool().query('SELECT 1'); return 'healthy'; } catch { return 'unavailable'; }
-};
+export type RuntimeStoreStatus = 'not_configured' | 'schema_unready' | 'healthy' | 'unavailable';
 
+export const checkRuntimeStore = async (): Promise<RuntimeStoreStatus> => {
+  if (!isRuntimeStoreConfigured()) return 'not_configured';
+  try {
+    const result = await getPool().query<{ ready: boolean }>("SELECT to_regclass('public.tenants') IS NOT NULL AND to_regclass('public.banks') IS NOT NULL AND to_regclass('public.facts') IS NOT NULL AND to_regclass('public.events') IS NOT NULL AS ready");
+    return result.rows[0]?.ready ? 'healthy' : 'schema_unready';
+  } catch { return 'unavailable'; }
+};

@@ -1,4 +1,4 @@
-import test from "node:test";
+import { it as test } from "vitest";
 import assert from "node:assert/strict";
 import { stripMemoryContext, wrapMemoryContext } from "../capture";
 import { captureMessage, DEFAULT_SESSION_BUFFER, drainBuffer, shouldAutoCommit } from "../session-buffer";

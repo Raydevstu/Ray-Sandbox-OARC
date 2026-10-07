@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { it as test } from "vitest";
 import { buildRecallDigest } from "../digest";
 
 test("builds cited deterministic bullets and abstains on no relevant memories", () => {

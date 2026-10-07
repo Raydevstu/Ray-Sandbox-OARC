@@ -10,7 +10,10 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke:postgres": "node scripts/postgres-smoke-test.mjs",
+    "db:migrate:postgres": "node scripts/postgres-migrate.mjs",
+    "db:status:postgres": "node scripts/postgres-status.mjs"
   },
   "dependencies": {
     "@types/pg": "^8.23.1",

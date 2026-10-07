@@ -10,6 +10,21 @@
 
 **Spec:** User-requested implementation slice and Milestones 1-2 in the task message.
 
+## Audit status — 2026-10-07
+
+| Task | Status | Evidence / remaining gap |
+|---|---|---|
+| Task 1: baseline fixtures and temporal model | `IMPLEMENTED` / `TESTED/RUNNING` | Temporal test was migrated to Vitest; temporal metadata and fixture tests pass in the full 53-test matrix. |
+| Task 2: temporal extraction and query intent | `IMPLEMENTED` / `TESTED/RUNNING` | Temporal extraction, NLP, retain, and recall tests pass. |
+| Task 3: supersession-aware recall trace | `IMPLEMENTED` / `TESTED/RUNNING` | Current/history/all-evidence behavior and trace/citation implementation pass automated tests; visual browser verification remains separate. |
+| Task 4: L0/L1/L2 layers and packing | `IMPLEMENTED` / `TESTED/RUNNING` | Vitest alias is configured and layer implementation/tests pass. |
+| Task 5: deterministic cited digest and UI controls | `IMPLEMENTED` / `TESTED/RUNNING` | Digest implementation/tests pass; browser-level UI verification remains separate. |
+| Retrieval slice production readiness | `PENDING` | Automated matrix is green. Remaining gates are browser E2E, production build, and performance evidence. |
+
+### Current failure requiring fix
+
+The previous Vitest alias and Node-style test-runner failures are fixed. `npm test` now passes 19 files and 53 tests. Production readiness is still not claimed until browser E2E and deployment gates are completed.
+
 ## Global Constraints
 
 - Keep changes focused and below the project's 800-line change guidance where practical.
@@ -65,4 +80,3 @@
 - [ ] Test cited bullet generation, duplicate compression, and abstention.
 - [ ] Implement digest stage with off/deterministic modes and source fact IDs.
 - [ ] Verify typecheck, lint, focused tests, and browser smoke test.
-

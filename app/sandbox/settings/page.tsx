@@ -80,7 +80,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-xs text-muted mb-2">Execution mode</p>
               <Segmented value={ui.runtimeMode} onChange={(v) => s.setUi({ runtimeMode: v })} options={[{ value: "deterministic", label: "Deterministic" }, { value: "runtime", label: "Runtime" }]} />
-              <p className="text-[11px] text-faint mt-1">Runtime mode is explicit and will report unavailable until the canonical store is wired.</p>
+              <p className="text-[11px] text-faint mt-1">Runtime mode is explicit; health and canonical-store readiness are reported below.</p>
             </div>
           </div>
           <div>

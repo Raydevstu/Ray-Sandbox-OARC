@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+import { describe, it as test } from "vitest";
 import { BENCHMARK_ROUTES, benchmarkMarkdown, runScenarioBenchmark } from "../benchmark";
 
 describe("full scenario benchmark", () => {

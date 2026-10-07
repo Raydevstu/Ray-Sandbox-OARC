@@ -10,6 +10,20 @@
 
 **Spec:** User-approved Milestone 5 design in the task conversation.
 
+## Audit status — 2026-10-07
+
+| Task | Status | Evidence / remaining gap |
+|---|---|---|
+| Task 1: canonical events and outcome feedback | `IMPLEMENTED` / `TESTED/RUNNING` | Event, feedback, and integration tests pass in the complete 53-test matrix. |
+| Task 2: offline queue simulation | `IMPLEMENTED` / `TESTED/RUNNING` | Bounded FIFO/idempotent replay implementation and tests pass. |
+| Task 3: filesystem projection | `IMPLEMENTED` / `TESTED/RUNNING` | Projection implementation/tests pass; actual browser download interaction remains pending. |
+| Task 4: adapter examples and Integrations UX | `IMPLEMENTED` / `TESTED/RUNNING` | Adapter tests pass and `/sandbox/integrations` returns HTTP 200 locally; browser interaction and external delivery remain unverified by design. |
+| Milestone 5 completion gate | `PENDING` | Automated and HTTP checks are green. Remaining gates are browser interaction, production build, and final scope/security review. |
+
+### Current failure requiring fix
+
+The previous `@/lib/integrations/adapters` import failure is fixed by `vitest.config.ts`. The full integration suite now passes; browser interaction and production-readiness checks remain open.
+
 ## Global Constraints
 
 - Keep the implementation focused and below the project’s 800-line change guidance.
@@ -93,4 +107,3 @@
 - [ ] Add UI controls for canonical event inspection, feedback, queue replay, projection preview/download, and adapter examples.
 - [ ] Run typecheck, lint, build, engine tests, and an HTTP smoke test for `/sandbox/integrations`.
 - [ ] Review the diff for scope and commit the complete Milestone 5 slice.
-
