@@ -1,0 +1,11 @@
+{
+  "source": "docs/superpowers/specs/2026-10-07-v2-ui-design-implementation-blueprint.md",
+  "route": "/sandbox",
+  "viewports": [
+    { "name": "mobile", "width": 375, "height": 812 },
+    { "name": "tablet", "width": 768, "height": 1024 },
+    { "name": "desktop", "width": 1024, "height": 768 },
+    { "name": "wide", "width": 1440, "height": 900 }
+  ],
+  "assertions": ["no-horizontal-scroll", "shell-regions-visible", "focus-visible"]
+}
