@@ -24,6 +24,7 @@ import { cn, formatDate, fmtMs, NETWORK_META, timeAgo } from "@/lib/utils";
 import type { FilterNode, MemoryFact, Network, RecallTrace, ReflectResult } from "@/lib/types";
 import { pendingTokens } from "@/lib/engine/session-buffer";
 import { SAMPLE_RETAIN_TEXTS } from "@/lib/data/seed";
+import { ContextLayerStack, EvidenceDrawer, MemoryQueryComposer, RetrievalTraceTimeline, type EvidenceState } from "@/components/oarc-v2/evidence-workbench";
 
 type Tab = "retain" | "session" | "browser" | "graph" | "recall" | "reflect" | "observations" | "opinions" | "entities";
 
@@ -751,6 +752,8 @@ function RecallPanel({
   const [busy, setBusy] = useState(false);
   const [filters, setFilters] = useState<FilterNode | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [evidenceState, setEvidenceState] = useState<EvidenceState>("ready");
+  const [selectedEvidence, setSelectedEvidence] = useState<MemoryFact | null>(null);
 
   useEffect(() => {
     if (seedQuery) setQuery(seedQuery);
@@ -759,6 +762,7 @@ function RecallPanel({
   const run = () => {
     if (!query.trim()) return;
     setBusy(true);
+    setEvidenceState("loading");
     setTimeout(() => {
       const t = recall({
         query,
@@ -771,6 +775,7 @@ function RecallPanel({
       });
       setTrace(t);
       setBusy(false);
+      setEvidenceState(t.selected.length ? "ready" : "empty");
       s.bumpAccess(t.selected.map((c) => c.fact.id));
       s.logEvent({
         app: "memory",
@@ -794,6 +799,7 @@ function RecallPanel({
   return (
     <div className="space-y-4">
       <RuntimeStatus mode={s.ui.runtimeMode} />
+      <MemoryQueryComposer query={query} onQueryChange={setQuery} onSubmit={run} busy={busy} state={evidenceState} presets={presets} />
       <Card>
         <CardHeader
           title="Recall(B, Q, k) → {f₁…fₙ}"
@@ -850,6 +856,10 @@ function RecallPanel({
           </div>
         )}
       </Card>
+      <div className="grid xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,1fr)] gap-4">
+        <RetrievalTraceTimeline trace={trace} state={evidenceState} onCitation={setSelectedEvidence} />
+        <ContextLayerStack trace={trace} />
+      </div>
       {trace && <RecallTraceView trace={trace} />}
       {trace && <p className="text-[10px] text-faint px-1">Trace mode: {s.ui.runtimeMode}. Runtime mode is not enabled by fallback; this panel currently executes the local deterministic engine.</p>}
       {!trace && (
@@ -861,6 +871,7 @@ function RecallPanel({
           />
         </Card>
       )}
+      <EvidenceDrawer fact={selectedEvidence} onClose={() => setSelectedEvidence(null)} />
     </div>
   );
 }

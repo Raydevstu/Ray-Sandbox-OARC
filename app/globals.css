@@ -152,6 +152,51 @@ html, body {
 .oarc-metric-value small { margin-left: 4px; color: var(--muted); font-size: 11px; font-weight: 400; }
 .oarc-responsive-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .oarc-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.oarc-query-composer { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.oarc-query-composer input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: 13px var(--font-jetbrains), monospace; }
+.oarc-query-composer button { min-height: 32px; padding: 0 12px; border-radius: 7px; background: var(--accent); color: var(--bg); font-size: 12px; font-weight: 600; }
+.oarc-query-composer button:disabled { cursor: not-allowed; opacity: .5; }
+.oarc-preset-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.oarc-preset-row button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); background: var(--surface-2); font-size: 11px; }
+.oarc-preset-row button:hover { color: var(--accent); border-color: var(--accent-border); }
+.oarc-trace-timeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.oarc-trace-timeline li { position: relative; display: flex; gap: 8px; min-width: 0; padding: 10px; border: 1px solid var(--border-soft); border-radius: 9px; background: var(--surface-2); }
+.oarc-trace-timeline li > div { min-width: 0; display: grid; gap: 4px; }
+.oarc-trace-timeline strong { color: var(--text); font-size: 11px; line-height: 1.35; }
+.oarc-trace-timeline li span:not(.oarc-trace-marker) { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.oarc-trace-marker { display: grid; place-items: center; width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; font: 11px var(--font-jetbrains), monospace; }
+.oarc-trace-info { color: var(--chart-primary); background: color-mix(in srgb, var(--chart-primary) 14%, transparent); }
+.oarc-trace-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.oarc-trace-warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.oarc-trace-arrow { display: none; }
+.oarc-citation-strip { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
+.oarc-citation-strip > div { display: grid; gap: 5px; }
+.oarc-citation-strip button { display: block; width: 100%; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+.oarc-citation-strip button:hover { color: var(--accent); }
+.oarc-citation-strip button span { margin-right: 7px; color: var(--accent); font-family: var(--font-jetbrains), monospace; }
+.oarc-layer-stack { display: grid; gap: 8px; }
+.oarc-layer-row { display: flex; align-items: center; gap: 10px; padding: 9px; border: 1px solid var(--border-soft); border-radius: 8px; }
+.oarc-layer-index { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); font: 11px var(--font-jetbrains), monospace; }
+.oarc-layer-row strong, .oarc-layer-row span { display: block; }
+.oarc-layer-row strong { color: var(--text); font-size: 12px; }
+.oarc-layer-row span { color: var(--muted); font-size: 10px; }
+.oarc-layer-row code { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.oarc-state-panel { display: flex; align-items: center; gap: 10px; min-height: 92px; color: var(--muted); font-size: 12px; }
+.oarc-state-panel svg { color: var(--chart-primary); flex: 0 0 auto; }
+.oarc-state-danger svg { color: var(--danger); }
+.oarc-skeleton-stack { display: grid; gap: 10px; min-height: 92px; padding-top: 6px; }
+.oarc-skeleton-stack span { display: block; height: 20px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2)); background-size: 240px 100%; animation: shimmer 1.4s linear infinite; }
+.oarc-evidence-drawer { position: fixed; inset: 76px 20px 20px auto; z-index: 50; width: min(420px, calc(100vw - 24px)); overflow: auto; padding: 18px; border: 1px solid var(--accent-border); border-radius: 14px; background: var(--surface); box-shadow: 0 24px 80px rgb(0 0 0 / .38); animation: oarc-drawer-in var(--motion-standard) ease both; }
+@keyframes oarc-drawer-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+.oarc-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.oarc-drawer-header h2 { margin: 10px 0 0; color: var(--text); font-size: 15px; line-height: 1.45; }
+.oarc-drawer-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+.oarc-drawer-facts div { min-width: 0; padding: 9px; border-radius: 8px; background: var(--surface-2); }
+.oarc-drawer-facts dt { color: var(--faint); font-size: 10px; }
+.oarc-drawer-facts dd { margin: 4px 0 0; overflow-wrap: anywhere; color: var(--text); font: 10px var(--font-jetbrains), monospace; }
+.oarc-drawer-section { padding: 12px 0; border-top: 1px solid var(--border-soft); }
+.oarc-drawer-section h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; color: var(--text); font-size: 12px; }
+.oarc-drawer-section p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 1023px) { .oarc-responsive-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 767px) {
@@ -159,6 +204,8 @@ html, body {
   .oarc-main-canvas { padding: 16px 12px; }
   .oarc-responsive-grid { grid-template-columns: minmax(0, 1fr); }
   .oarc-status-line { padding-inline: 12px; }
+  .oarc-trace-timeline { grid-template-columns: minmax(0, 1fr); }
+  .oarc-evidence-drawer { inset: auto 12px 12px; width: auto; max-height: 76vh; }
 }
 
 @media (prefers-reduced-motion: reduce) {
