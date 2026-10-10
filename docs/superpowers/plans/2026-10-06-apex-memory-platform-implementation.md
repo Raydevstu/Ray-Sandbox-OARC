@@ -14,6 +14,8 @@
 
 Status meanings: `IMPLEMENTED` means the source exists and the intended slice is present; `TESTED/RUNNING` means direct verification passed; `PENDING` means planned but not implemented or not fully wired; `NOT FUNCTIONING` means a verification gate currently fails.
 
+Current UI implementation checkpoint: the V2 design blueprint is active on branch `V2-design`. V2.1 visual foundations and V2.2 evidence-first memory workbench are implemented and validated by typecheck, test, lint, and build. The next boundary is V2.3 live observability charts; browser E2E for the V2.2 workflow remains an explicit pending gate.
+
 | Area | Status | Evidence / remaining gap |
 |---|---|---|
 | Tasks 1–4: contracts, repository, retention, lexical retrieval | `IMPLEMENTED` / `TESTED/RUNNING` | Runtime tests pass (35 tests); live PostgreSQL retain/recall smoke test passes. The repository is a parameterized `pg` implementation, not the Drizzle repository specified by the original plan. |

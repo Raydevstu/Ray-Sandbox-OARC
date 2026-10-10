@@ -25,6 +25,7 @@ import type { FilterNode, MemoryFact, Network, RecallTrace, ReflectResult } from
 import { pendingTokens } from "@/lib/engine/session-buffer";
 import { SAMPLE_RETAIN_TEXTS } from "@/lib/data/seed";
 import { ContextLayerStack, EvidenceDrawer, MemoryQueryComposer, RetrievalTraceTimeline, type EvidenceState } from "@/components/oarc-v2/evidence-workbench";
+import { MemoryHealthSummary } from "@/components/memory/MemoryHealthSummary";
 
 type Tab = "retain" | "session" | "browser" | "graph" | "recall" | "reflect" | "observations" | "opinions" | "entities";
 
@@ -76,6 +77,7 @@ export default function MemoryPage() {
         </div>
       </Card>
 
+      <MemoryHealthSummary records={facts.length + observations.length + opinions.length} />
       <Tabs
         active={tab}
         onChange={(t) => setTab(t as Tab)}

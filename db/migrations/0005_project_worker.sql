@@ -1,0 +1,11 @@
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS event_id TEXT;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS available_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_error TEXT;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS consumer TEXT;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS lease_until TIMESTAMPTZ;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+CREATE TABLE IF NOT EXISTS project_worker_checkpoints (tenant_id TEXT NOT NULL, bank_id TEXT NOT NULL, consumer TEXT NOT NULL, event_id TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL, PRIMARY KEY (tenant_id, bank_id, consumer));
+CREATE INDEX IF NOT EXISTS jobs_claim_idx ON jobs (tenant_id, bank_id, status, available_at);
+CREATE INDEX IF NOT EXISTS jobs_lease_idx ON jobs (tenant_id, bank_id, status, lease_until);

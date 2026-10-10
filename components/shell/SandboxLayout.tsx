@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Database, Eye, Gauge, GraduationCap, LayoutDashboard, Search, SlidersHorizontal,
-  Sparkles, Workflow, Settings2, ChevronsLeft, ChevronsRight, Sun, Moon, ExternalLink, FlaskConical, Cable, History,
+  Sparkles, Workflow, Settings2, ChevronsLeft, ChevronsRight, Sun, Moon, ExternalLink, FlaskConical, Cable, History, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSandbox } from "@/lib/store";
@@ -30,14 +30,16 @@ const NAV: { group: string; items: NavItem[] }[] = [
     group: "Apps",
     items: [
       { href: "/sandbox/memory", label: "Memory", icon: Database },
+      { href: "/sandbox/onboarding", label: "Getting started", icon: Sparkles },
       { href: "/sandbox/prompts", label: "Prompt Studio", icon: Sparkles },
       { href: "/sandbox/context", label: "Context Tuning", icon: SlidersHorizontal },
       { href: "/sandbox/learning", label: "Continuous Learning", icon: GraduationCap },
     ],
   },
-  {
-    group: "System",
-    items: [
+      {
+        group: "System",
+        items: [
+      { href: "/sandbox/operator", label: "Operator workspace", icon: ShieldCheck },
       { href: "/sandbox/orchestrator", label: "Orchestrator", icon: Workflow },
       { href: "/sandbox/eval", label: "Evaluation", icon: FlaskConical },
       { href: "/sandbox/snapshots", label: "Snapshots", icon: History },

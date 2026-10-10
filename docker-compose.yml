@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hindsight
+      POSTGRES_USER: hindsight
+      POSTGRES_PASSWORD: hindsight_local_only
+    ports:
+      - "5433:5432"
+    volumes:
+      - hindsight-postgres:/var/lib/postgresql/data
+      - ./db/migrations/0002_postgres_canonical_memory.sql:/docker-entrypoint-initdb.d/01-canonical.sql:ro
+      - ./db/migrations/0003_memory_tombstones.sql:/docker-entrypoint-initdb.d/02-tombstones.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hindsight -d hindsight"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "3018:3000"
+    environment:
+      NODE_ENV: production
+      APEX_DATABASE_URL: postgresql://hindsight:hindsight_local_only@postgres:5432/hindsight
+      APEX_ALLOW_DEV_PRINCIPAL: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  hindsight-postgres:

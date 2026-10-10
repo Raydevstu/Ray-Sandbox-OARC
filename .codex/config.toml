@@ -1,0 +1,2 @@
+[plugins."ray-memory@ray-sandbox-local"]
+enabled = true

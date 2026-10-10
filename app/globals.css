@@ -17,7 +17,7 @@
   --border-soft: #1c1c30;
   --text: #e9e9f4;
   --muted: #9d9db5;
-  --faint: #63637c;
+  --faint: #8b8ba5;
 
   --accent: hsl(var(--h) 90% 68%);
   --accent-soft: hsl(var(--h) 80% 60% / 0.14);
@@ -64,7 +64,7 @@
   --border-soft: #e6e6f0;
   --text: #17172a;
   --muted: #5c5c76;
-  --faint: #8d8da4;
+  --faint: #5c5c76;
 
   --accent: hsl(var(--h) 75% 48%);
   --accent-soft: hsl(var(--h) 75% 48% / 0.1);
@@ -119,6 +119,24 @@ html, body {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+.oarc-live-chart { border: 1px solid var(--border); border-radius: 14px; background: var(--surface); padding: 16px; }
+.oarc-live-chart-header, .oarc-live-chart-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.oarc-live-chart-header h3 { margin: 0; color: var(--text); font-size: 14px; font-weight: 650; }
+.oarc-live-chart-header p, .oarc-live-chart-summary { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+.oarc-live-chart-status { border-radius: 999px; padding: 4px 8px; font: 11px var(--font-mono); }
+.oarc-live-chart-status-live { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.oarc-live-chart-status-stale { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.oarc-live-chart-status-disconnected { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.oarc-live-chart-controls { justify-content: flex-start; margin: 14px 0 8px; }
+.oarc-live-chart-controls button { min-height: 32px; border: 1px solid var(--border); border-radius: 8px; padding: 5px 9px; color: var(--muted); background: var(--surface-2); font-size: 11px; display: inline-flex; align-items: center; gap: 5px; }
+.oarc-live-chart-controls button:hover:not(:disabled), .oarc-live-chart-controls button[aria-pressed="true"] { color: var(--text); border-color: var(--accent); }
+.oarc-live-chart-controls button:disabled { opacity: .45; cursor: not-allowed; }
+.oarc-live-chart-table-wrap { max-height: 240px; overflow: auto; }
+.oarc-live-chart-table { width: 100%; border-collapse: collapse; font: 11px var(--font-mono); }
+.oarc-live-chart-table caption { text-align: left; color: var(--muted); padding: 8px 0; }
+.oarc-live-chart-table th, .oarc-live-chart-table td { text-align: right; border-bottom: 1px solid var(--border-soft); padding: 6px 8px; white-space: nowrap; }
+.oarc-live-chart-table th:first-child, .oarc-live-chart-table td:first-child { text-align: left; }
 
 .oarc-context-bar {
   position: sticky; top: 0; z-index: 30; min-height: 56px; display: flex; align-items: center;

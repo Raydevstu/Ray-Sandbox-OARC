@@ -1,8 +1,77 @@
 # Ray Sandbox OARC V2 — UI Design and Rendering Implementation Blueprint
 
-Status: DESIGN ONLY — approved for implementation planning, not yet implemented
+Status: ACTIVE SOURCE OF TRUTH — V2.1 and V2.2 implemented; V2.3 partial implementation in progress
 Branch: `V2-design`
 Product: Ray Sandbox OARC, an agent-memory orchestration and observability workspace
+
+## Implementation status — 2026-10-07
+
+The blueprint remains the source of truth for the V2 UI contract. The following slices have now been implemented on the `V2-design` branch:
+
+| Slice | Status | Commit | Evidence |
+|---|---|---|---|
+| V2.1 visual foundations | `IMPLEMENTED` / `TESTED` | `167d8a1 feat: implement V2 visual foundations` | Semantic tokens, typed shell regions, responsive primitives, focus states, reduced-motion CSS, and viewport fixtures |
+| V2.2 evidence-first memory workbench | `IMPLEMENTED` / `TESTED` | `ccd6735 feat: add evidence-first memory workbench` | Query composer, lifecycle states, retrieval timeline, citations, layered context, evidence drawer, responsive and keyboard-accessible states |
+| V2.3 live observability charts | `PARTIAL` / `TESTED` | Uncommitted working-tree implementation | Typed models, bounded buffer helpers, immutable event ingestion, deterministic freshness/pause/disconnect state, SVG adapter, controls, table fallback, hidden-tab pause, and render-cost samples are implemented; the complete chart set, controlled render benchmark, and browser QA remain pending |
+| V2.4 graph motion and operator controls | `PENDING` | — | Depends on the V2.3 telemetry boundary and remains user-controlled |
+| V2.5 polish and hardening | `PENDING` | — | Requires browser E2E, responsive QA, bundle analysis, and final gates |
+
+Validation completed for V2.2:
+
+- `npm run typecheck` passed.
+- `npm test -- --run` passed: 19 test files and 53 tests.
+- `npm run lint` exited successfully with existing non-blocking warnings for unused eslint-disable directives, Next.js `next lint` deprecation, and multiple lockfiles.
+- `npm run build` passed and generated all application routes.
+- Browser E2E for the V2.2 interaction path is not yet independently verified; do not mark the V2 definition of done complete until that gate passes.
+
+## Implementation checklist — 2026-10-07
+
+This checklist distinguishes source-code evidence from browser or production evidence. `IMPLEMENTED / TESTED / WORKING` means the behavior exists in the current worktree and is covered by the recorded automated checks. `NOT IMPLEMENTED / PENDING` means it remains a follow-up item and must not be inferred from a passing build.
+
+### Implemented / tested / working
+
+| Area | Evidence | State |
+|---|---|---|
+| V2.1 semantic visual foundations | Semantic tokens, typed shell regions, responsive primitives, focus states, reduced-motion CSS, and viewport fixtures; commit `167d8a1`; full gates recorded above | `IMPLEMENTED / TESTED / WORKING` |
+| V2.2 evidence-first memory workbench | Query composer, lifecycle states, retrieval timeline, citations, layered context, evidence drawer, responsive and keyboard-accessible states; commit `ccd6735`; full gates recorded above | `IMPLEMENTED / TESTED / WORKING` |
+| Chart domain boundary | `OarcPoint`, `OarcSeries`, semantic color tokens, line styles, enabled state, immutable snapshots in `lib/runtime/telemetry.ts` | `IMPLEMENTED / TESTED` |
+| Bounded telemetry utilities | Immutable `pushBounded`, bounded point/series updates, newest-point selection, and table-row projection; covered by `tests/runtime/telemetry.test.ts` | `IMPLEMENTED / TESTED` |
+| Lightweight chart adapter | Existing zero-dependency SVG `LineChart` is used; no ECharts, Recharts, Canvas, or D3 dependency was introduced | `IMPLEMENTED / WORKING` |
+| First dashboard surface | `/sandbox` adapts the existing `opsSeries` contract into a live retrieval telemetry chart | `IMPLEMENTED / WORKING` |
+| Operator chart controls | Pause/resume control, zoom in/out, reset, and chart/table toggle with native buttons and `aria-pressed` | `IMPLEMENTED / TESTED` |
+| Text and table fallback | Current-value summary, connection status text, and readable telemetry table fallback | `IMPLEMENTED / TESTED` |
+| Hidden-tab behavior | `visibilitychange` pauses the chart while the document is hidden and exposes the state in text | `IMPLEMENTED / TESTED` |
+| Render-cost instrumentation | `RenderCostSample` and `recordRenderCost` callback boundary are present; focused test verifies non-negative measurement | `IMPLEMENTED / TESTED` |
+| Runtime event source adapter | Existing sandbox `events` log is mapped into typed telemetry events and consumed incrementally by the live chart; external collector/runtime transport is not implied | `IMPLEMENTED / TESTED` |
+| V2.3 chart surfaces | Latency trend, retrieval mix, runtime health, and queue pressure views now use the shared typed series model, controls, and table fallback | `IMPLEMENTED / TESTED` |
+| Controlled render-cost measurement | `npm run benchmark:telemetry`: 200 iterations across 1/4 chart sets and 30/120/600/1200 points; model preparation averaged 0.020–0.122 ms per iteration | `IMPLEMENTED / TESTED` |
+| Real MCP boundary | `/api/mcp` now serves JSON-RPC initialize/tools-list/tools-call, authenticates principals, enforces tenant/bank scope and permissions, and routes retain, recall, update, delete, and entity listing into runtime services | `IMPLEMENTED / TESTED` |
+| Current automated gates | `npm test -- --run`: 20 files / 61 tests; `npm run typecheck`; `npm run lint`; `npm run build`; `git diff --check` | `TESTED / WORKING` |
+
+### Not implemented / pending
+
+| Area | Required next evidence | State |
+|---|---|---|
+| True runtime event stream | Sandbox event-log ingestion and pause/resume behavior are implemented; connection to an external/runtime transport and browser proof remain | `PARTIAL / PENDING` |
+| Codex feature parity | Server-backed retain, recall, revision update, tombstone delete, and entity listing are exposed; server-backed reflect, Codex host verification, and browser-only MCP playground parity remain | `PARTIAL / PENDING` |
+| Complete V2.3 chart set | Core latency, retrieval mix, runtime health, and queue pressure views are wired; browser visual/interaction evidence and production-grade metric semantics remain | `PARTIAL / PENDING` |
+| Stream freshness policy | Deterministic stale timeout plus pause/disconnected precedence is implemented/tested; reconnect behavior driven by real event availability remains | `PARTIAL / PENDING` |
+| Render-cost benchmark report | Source-level model-preparation benchmark is recorded; browser paint/compositing and update-rate measurements remain | `PARTIAL / PENDING` |
+| Browser interaction verification | Independently exercise chart controls, table parity, hidden-tab behavior, keyboard focus, and responsive layouts in a browser | `NOT IMPLEMENTED / PENDING` |
+| V2.4 graph and operator controls | Typed graph viewport, inspector, route replay, runtime/health/stream/animation controls, and audited risky actions | `NOT IMPLEMENTED / PENDING` |
+| V2.5 hardening | Responsive visual QA, reduced-motion and screen-reader QA, bundle analysis, browser memory workflow E2E, and final production smoke | `NOT IMPLEMENTED / PENDING` |
+
+## Recommended implementation order
+
+1. **Complete the telemetry adapter contract.** **Implemented/tested in the current working tree.** The typed event envelope, immutable append API, explicit point limits, stale timeout, and pause/disconnected precedence are now the baseline for the remaining chart work.
+2. **Add deterministic stream-state tests.** **Implemented/tested in the current working tree.** Live ingestion, bounded updates, paused rejection, stale detection, and disconnected precedence are covered; browser-only hidden-tab and control behavior remain a separate gate.
+3. **Wire the complete V2.3 chart set.** **Implemented/tested at source level in the current working tree.** The four core views now use the shared domain models, current-value summaries, line-style redundancy, and table fallback contract; browser evidence remains.
+4. **Measure render cost under controlled loads.** Benchmark representative point counts and update rates for the SVG adapter. Record the result and only introduce Canvas or ECharts if the measured threshold justifies the dependency and bundle cost.
+5. **Run browser QA for V2.3.** Verify keyboard operation, pause/resume, zoom/reset, table parity, stale/disconnected states, hidden-tab behavior, reduced motion, and 375/768/1024/1440px layouts. Keep this separate from unit/build evidence.
+6. **Implement V2.4 operator and graph behavior.** Reuse the now-stable telemetry and stream contracts for graph health, route replay, runtime mode, and explicit operator actions with audit events.
+7. **Finish V2.5 hardening and acceptance.** Perform bundle analysis/lazy-loading review, screen-reader and responsive QA, browser E2E for retain → recall → trace → citation, production smoke checks, and only then update the overall V2 definition of done.
+
+The V2 implementation intentionally preserves the deterministic/local memory engine and existing runtime contracts. `.firecrawl/` is local research cache and remains untracked; it must not be included in commits.
 
 ## 1. Design decision
 
@@ -311,6 +380,89 @@ Asset intake requires:
 - browser E2E for retain → recall → trace → citation;
 - build, lint, typecheck, test, and production smoke gates.
 
+### Slice V2.6 — cross-chat project memory palace
+
+This slice establishes durable, structured project continuity across Codex, ChatGPT, Claude, Gemini, Cursor, terminal sessions, browser QA, and runtime tooling. It is an implementation-ready extension of the existing canonical memory and telemetry contracts, not a replacement memory engine.
+
+#### Objective
+
+Any AI entering a project should be able to recover the current development state, important historical decisions, evidence, risks, and next actions without depending on the previous chat transcript. The system must distinguish captured facts from inferred or missing information and must not add synchronous work to the critical MCP or chat path.
+
+#### Canonical data model
+
+Add versioned, provenance-first records for:
+
+- requirements, decisions, implementation changes, tests, benchmarks, runtime observations, risks, blockers, follow-ups, and document references;
+- source platform, conversation ID, message ID, file path, commit, timestamp, evidence kind, confidence, importance, status, related records, and superseded records;
+- append-only project events such as `RequirementCreated`, `DecisionRecorded`, `ImplementationCompleted`, `TestPassed`, `TestFailed`, `BenchmarkRecorded`, `ConversationImported`, and `DecisionSuperseded`.
+
+The current project view must be a projection of the event log. Historical records are never silently deleted; changed facts are superseded or invalidated with evidence.
+
+#### Project memory manifest
+
+Generate a human-readable and machine-readable project manifest containing:
+
+- project identity, repository, branch, runtime, and deployment state;
+- active requirements and decisions;
+- implemented, verified, stale, conflicting, blocked, and pending work;
+- database, MCP, Codex, and environment configuration status without secrets;
+- test, benchmark, browser, and runtime evidence;
+- source files and documents;
+- recommended next actions and capture gaps.
+
+The manifest is generated from canonical records and must not become a second manually maintained source of truth.
+
+#### Capture and ingestion
+
+Implement a common `ConversationEvent` envelope and adapters in this order:
+
+1. Codex MCP calls, tool results, and project-session events.
+2. Repository commits, tests, builds, runtime health, and browser QA evidence.
+3. Imported ChatGPT, Claude, Gemini, Cursor, and terminal conversations where export or connector access is available.
+
+Capture raw source safely, classify it, extract durable facts, deduplicate them, and commit only provenance-linked canonical records. Do not treat every conversational sentence as project memory.
+
+#### Accuracy and trust gates
+
+The Tier 1 target is measurable project continuity, not an unprovable claim that every platform exposes every message:
+
+- at least 99% of explicit user decisions captured in the golden-project corpus;
+- at least 99% of critical requirements linked to evidence;
+- at least 98% correct current-status and supersession classification;
+- less than 1% unsupported factual claims in generated manifests;
+- 100% of critical records with provenance;
+- zero silent deletion of historical records;
+- deterministic event-log replay producing the same current projection;
+- explicit `uncaptured`, `uncertain`, `stale`, and `conflict` states.
+
+#### Performance and safety constraints
+
+Conversation ingestion, extraction, indexing, and manifest generation run asynchronously through bounded, retryable workers. The synchronous chat, MCP, and memory-recall path must not wait for an LLM summarization call or an unbounded write. Measure queue depth, extraction latency, storage growth, retrieval latency, failure rate, and primary MCP latency regression.
+
+#### V2.6 acceptance tests
+
+- schema and migration tests cover versioning, provenance, supersession, conflict, and replay;
+- an end-to-end fixture imports multiple conversations and produces one coherent manifest;
+- the same decision captured twice is deduplicated without losing evidence;
+- a later decision supersedes an earlier decision without deleting history;
+- changed files and failed tests invalidate stale implementation records;
+- a new AI bootstrap retrieves current branch, runtime, verified gates, pending work, and capture gaps;
+- missing connector/export data is clearly reported rather than invented;
+- background processing remains bounded and does not regress MCP/chat latency beyond the agreed budget;
+- Tier 1 golden-project evaluation and with-memory versus without-memory benchmark are recorded before V2.6 is marked complete.
+
+#### V2.6 implementation order
+
+1. Define `ProjectMemoryRecord`, `ConversationEvent`, and event-type schemas.
+2. Add append-only project events and current-state projections.
+3. Generate the project memory manifest.
+4. Ingest Codex MCP and runtime evidence.
+5. Add extraction, confidence, provenance, deduplication, supersession, and invalidation.
+6. Add bounded asynchronous workers and telemetry.
+7. Add cross-platform import adapters.
+8. Add the audit UI and Tier 1 golden-project evaluation.
+9. Run the controlled benchmark and document the result.
+
 ## 10. Definition of done
 
 The V2 UI is ready for implementation acceptance when:
@@ -335,3 +487,6 @@ The V2 UI is ready for implementation acceptance when:
 - adding decorative 3D/particle effects to the operational UI;
 - claiming production readiness from a local visual pass;
 - selecting a chart dependency before measured rendering requirements justify it.
+- claiming complete cross-platform capture where a platform provides no export, event hook, or connector;
+- blocking chat, MCP, or recall responses on background memory extraction;
+- storing bearer credentials, provider secrets, or raw private conversation data without an explicit retention policy.

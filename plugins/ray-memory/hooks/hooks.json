@@ -1,0 +1,31 @@
+{
+  "description": "Ray Sandbox memory capture hooks",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${PLUGIN_ROOT}/scripts/capture-event.mjs",
+            "statusMessage": "Capturing approved memory event",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${PLUGIN_ROOT}/scripts/capture-event.mjs",
+            "statusMessage": "Recording conversation completion",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

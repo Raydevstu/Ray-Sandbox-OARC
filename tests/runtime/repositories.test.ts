@@ -30,4 +30,39 @@ describe('scoped repository ports', () => {
     expect(calls.some((call) => call.includes('COMMIT'))).toBe(true);
     await expect(repository.findFacts({ tenantId: 't2', bankId: 'b1' })).rejects.toThrow('scope');
   });
+  it('persists project events and records through scoped PostgreSQL statements', async () => {
+    const calls: Array<{ query: string; params: readonly unknown[] }> = [];
+    const repository = new PostgresRepository(async (query, params) => { calls.push({ query, params }); return []; }, { tenantId: 't1', bankId: 'b1' });
+    const event = { tenantId: 't1', bankId: 'b1', id: 'pe1', projectId: 'p1', type: 'ProjectMemoryRecorded', payload: { recordId: 'r1' }, occurredAt: '2026-10-07T00:00:00.000Z', sequence: 1 } as const;
+    const record = { tenantId: 't1', bankId: 'b1', id: 'r1', projectId: 'p1', type: 'decision', title: 'Decision', content: 'Use PostgreSQL', status: 'active', confidence: 1, importance: 'critical', source: { platform: 'codex', timestamp: '2026-10-07T00:00:00.000Z' }, evidence: [], supersedes: [], relatedRecords: [], createdAt: '2026-10-07T00:00:00.000Z', updatedAt: '2026-10-07T00:00:00.000Z' } as const;
+    await repository.appendProjectEvent(event);
+    await repository.appendProjectMemory(record);
+    expect(calls[0].query).toContain('INSERT INTO project_events');
+    expect(calls[1].query).toContain('INSERT INTO project_memory_records');
+    await expect(repository.appendProjectEvent({ ...event, tenantId: 't2' })).rejects.toThrow('scope');
+  });
+  it('normalizes PostgreSQL Date values before returning project memory records', async () => {
+    const repository = new PostgresRepository(async (query) => query.includes('FROM project_memory_records') ? [{ tenantId: 't1', bankId: 'b1', projectId: 'p1', id: 'r1', type: 'decision', title: 'Decision', content: 'Use PostgreSQL', status: 'active', confidence: 1, importance: 'critical', source: {}, evidence: [], supersedes: [], relatedRecords: [], createdAt: new Date('2026-10-07T00:00:00.000Z'), updatedAt: new Date('2026-10-07T01:00:00.000Z') }] : [], { tenantId: 't1', bankId: 'b1' });
+    await expect(repository.listProjectMemory({ tenantId: 't1', bankId: 'b1' }, 'p1')).resolves.toMatchObject([{ createdAt: '2026-10-07T00:00:00.000Z', updatedAt: '2026-10-07T01:00:00.000Z' }]);
+  });
+  it('records an exact claim timestamp for queue-delay measurement', async () => {
+    const calls: string[] = [];
+    const repository = new PostgresRepository(async (query) => {
+      calls.push(query);
+      if (query.includes('UPDATE jobs')) return [{ id: 'job-1', tenantId: 't1', bankId: 'b1', eventId: 'event-1', status: 'running', attempts: 1, availableAt: '2026-10-07T00:00:00.000Z' }];
+      if (query.includes('FROM project_events')) return [{ id: 'event-1', tenantId: 't1', bankId: 'b1', projectId: 'p1', type: 'EvidenceCaptured', payload: {}, occurredAt: '2026-10-07T00:00:00.000Z', sequence: 1 }];
+      return [];
+    }, { tenantId: 't1', bankId: 'b1' });
+    await repository.claimProjectJobs({ tenantId: 't1', bankId: 'b1' }, 'worker', 1, 1000);
+    expect(calls[0]).toContain('claimed_at = NOW()');
+  });
+  it('persists and reloads benchmark runs through scoped PostgreSQL statements', async () => {
+    const calls: Array<{ query: string; params: readonly unknown[] }> = [];
+    const run = { id: 'run-1', generatedAt: '2026-10-08T00:00:00.000Z', corpusId: 'golden', modelId: 'test', promptVersion: 'p1', evidence: 'replay', cases: [{ caseId: 'c1', mode: 'without-memory', answerScore: 0, citationPrecision: 0, unsupportedClaimRate: 0, latencyMs: 1, retrievalLatencyMs: 0, queueDelayMs: 0, persisted: false, captureStatus: 'uncaptured' }] } as const;
+    const repository = new PostgresRepository(async (query, params) => { calls.push({ query, params }); return query.includes('SELECT payload') ? [{ payload: run }] : []; }, { tenantId: 't1', bankId: 'b1' });
+    await repository.saveBenchmarkRun({ tenantId: 't1', bankId: 'b1' }, 'p1', run);
+    await expect(repository.listBenchmarkRuns({ tenantId: 't1', bankId: 'b1' }, 'p1', 10)).resolves.toEqual([run]);
+    expect(calls[0].query).toContain('INSERT INTO project_benchmark_runs');
+    expect(calls[1].query).toContain('SELECT payload');
+  });
 });

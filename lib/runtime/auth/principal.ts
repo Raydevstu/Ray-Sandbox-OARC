@@ -6,7 +6,9 @@ export type Permission = 'memory:read' | 'memory:write' | 'events:write' | 'jobs
 export type Principal = Readonly<{ subject: string; tenantId: string; scopes: ReadonlySet<Permission>; source: 'jwt' | 'dev' | 'service' }>;
 
 export const developmentPrincipal = (config: RuntimeConfig, request: Request): Principal => {
-  if (config.environment === 'production' || !config.allowDevelopmentPrincipal) throw new Error('development principal is disabled');
+  // Production remains locked down by default. An explicitly supplied
+  // APEX_ALLOW_DEV_PRINCIPAL=true is the opt-in for isolated local verification.
+  if (!config.allowDevelopmentPrincipal) throw new Error('development principal is disabled');
   const subject = request.headers.get('x-dev-subject');
   const tenantId = request.headers.get('x-dev-tenant-id');
   const scopes = request.headers.get('x-dev-scopes')?.split(/\s+/).filter(Boolean) as Permission[] | undefined;

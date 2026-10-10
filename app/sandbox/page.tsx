@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { Badge, Card, CardHeader, Empty, Progress, Sparkline, Stat } from "@/components/ui";
 import { Donut, HBarChart, LineChart } from "@/components/charts";
+import { LiveObservabilityChart } from "@/components/oarc-v2/live-observability-chart";
+import type { OarcSeries } from "@/lib/runtime/telemetry";
 import { useSandbox } from "@/lib/store";
 import { fmtMs, fmtNum, timeAgo, NETWORK_META } from "@/lib/utils";
 
@@ -35,6 +37,33 @@ export default function DashboardPage() {
     () => s.opsSeries.filter((_, i) => i % 4 === 0).map((p) => new Date(p.t).toLocaleTimeString("en-US", { hour: "numeric" })),
     [s.opsSeries]
   );
+
+  const telemetrySeries = useMemo<readonly OarcSeries[]>(() => [
+    { id: "recall", label: "Recall", colorToken: "primary", lineStyle: "solid", enabled: true, points: s.opsSeries.map((point) => ({ timestamp: point.t, value: point.recall })) },
+    { id: "reflect", label: "Reflect", colorToken: "secondary", lineStyle: "dashed", enabled: true, points: s.opsSeries.map((point) => ({ timestamp: point.t, value: point.reflect })) },
+    { id: "retain", label: "Retain", colorToken: "tertiary", lineStyle: "dotted", enabled: true, points: s.opsSeries.map((point) => ({ timestamp: point.t, value: point.retain })) },
+  ], [s.opsSeries]);
+
+  const dashboardChartSeries = useMemo(() => {
+    const now = Date.now();
+    const sampleTimes = (length: number) => Array.from({ length }, (_, index) => now - (length - index - 1) * 60_000);
+    const makeMetricSeries = (id: string, label: string, values: readonly number[], colorToken: OarcSeries["colorToken"], lineStyle: OarcSeries["lineStyle"] = "solid"): OarcSeries => ({
+      id, label, colorToken, lineStyle, enabled: true, points: values.map((value, index) => ({ timestamp: sampleTimes(values.length)[index], value })),
+    });
+    return {
+      latency: s.metrics.flatMap((metric, index) => [
+        makeMetricSeries(`${metric.appId}-p50`, `${metric.label} p50`, metric.series.map((value) => Math.max(1, Math.round(value * (metric.p50 / Math.max(1, metric.series.at(-1) ?? 1))))), index % 2 ? "secondary" : "primary"),
+        makeMetricSeries(`${metric.appId}-p95`, `${metric.label} p95`, metric.series.map((value) => Math.max(1, Math.round(value * (metric.p95 / Math.max(1, metric.series.at(-1) ?? 1))))), "alert", "dashed"),
+      ]),
+      retrievalMix: netMix.map((network, index) => makeMetricSeries(`network-${network.label.toLowerCase()}`, network.label, [network.value], (["primary", "secondary", "tertiary", "alert"] as const)[index] ?? "primary")),
+      health: s.metrics.map((metric, index) => makeMetricSeries(`health-${metric.appId}`, `${metric.label} throughput`, metric.series, index % 2 ? "secondary" : "primary")),
+      queue: [
+        makeMetricSeries("queue-offline", "Offline queue", [s.offlineQueue.length], "alert"),
+        makeMetricSeries("queue-integrations", "Integration events", [s.integrationEvents.length], "secondary", "dashed"),
+        makeMetricSeries("queue-webhooks", "Webhook deliveries", [s.webhookDeliveries.length], "tertiary", "dotted"),
+      ],
+    };
+  }, [netMix, s.integrationEvents.length, s.metrics, s.offlineQueue.length, s.webhookDeliveries.length]);
 
   const totalTokens = bankFacts.reduce((a, f) => a + f.tokens, 0);
   const avgConf =
@@ -96,6 +125,15 @@ export default function DashboardPage() {
             <Progress value={(avgConf || 0) * 100} color="var(--opinion)" />
           </div>
         </Card>
+      </div>
+
+      <LiveObservabilityChart title="Live retrieval telemetry" description="Bounded local stream from retain, recall, and reflect operations." series={telemetrySeries} events={s.events} />
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <LiveObservabilityChart title="Latency trend" description="Per-application p50 and p95 latency history from the runtime metrics store." series={dashboardChartSeries.latency} events={s.events} />
+        <LiveObservabilityChart title="Retrieval mix" description="Current active-bank distribution across the four memory networks." series={dashboardChartSeries.retrievalMix} events={s.events} />
+        <LiveObservabilityChart title="Runtime health" description="Bounded throughput samples for the mounted application fleet." series={dashboardChartSeries.health} events={s.events} />
+        <LiveObservabilityChart title="Queue pressure" description="Current offline, integration, and webhook backlog counts." series={dashboardChartSeries.queue} events={s.events} />
       </div>
 
       {/* app health + latency structure */}
@@ -160,7 +198,7 @@ export default function DashboardPage() {
       {/* event stream */}
       <Card>
         <CardHeader title="Event stream" subtitle="every retain, recall, consolidation and orchestration event" icon={<Sparkles size={15} />} />
-        <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+        <div className="space-y-1 max-h-72 overflow-y-auto pr-1" tabIndex={0} role="region" aria-label="Event stream">
           {s.events.slice(0, 30).map((e) => (
             <div key={e.id} className="flex items-start gap-3 rounded-lg px-2.5 py-2 hover:bg-surface-2 transition-colors text-[12.5px]">
               <Badge

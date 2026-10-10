@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ray_sandbox_staging
+      POSTGRES_USER: staging
+      POSTGRES_PASSWORD: staging_local_only
+    ports:
+      - "5443:5432"
+    volumes:
+      - ray-sandbox-staging-postgres:/var/lib/postgresql/data
+      - ./db/migrations/0002_postgres_canonical_memory.sql:/docker-entrypoint-initdb.d/01-canonical.sql:ro
+      - ./db/migrations/0003_memory_tombstones.sql:/docker-entrypoint-initdb.d/02-tombstones.sql:ro
+      - ./db/migrations/0004_project_memory.sql:/docker-entrypoint-initdb.d/03-project-memory.sql:ro
+      - ./db/migrations/0005_project_worker.sql:/docker-entrypoint-initdb.d/04-project-worker.sql:ro
+      - ./db/migrations/0006_benchmark_runs.sql:/docker-entrypoint-initdb.d/05-benchmarks.sql:ro
+      - ./db/migrations/0007_project_memory_retention.sql:/docker-entrypoint-initdb.d/06-retention.sql:ro
+      - ./db/staging/seed-scope.sql:/docker-entrypoint-initdb.d/99-seed-scope.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staging -d ray_sandbox_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build: .
+    ports:
+      - "3028:3000"
+    environment:
+      NODE_ENV: production
+      APEX_DATABASE_URL: postgresql://staging:staging_local_only@postgres:5432/ray_sandbox_staging
+      APEX_AUDIT_TENANT_ID: staging-tenant
+      APEX_AUDIT_BANK_ID: staging-bank
+      APEX_AUDIT_PROJECT_ID: staging-project
+      APEX_ALLOW_DEV_PRINCIPAL: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  ray-sandbox-staging-postgres:
