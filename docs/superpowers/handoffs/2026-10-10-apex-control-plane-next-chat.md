@@ -142,3 +142,47 @@ Direct evidence:
 - Focused Playwright/axe test: `2/2` projects passed against the checkout-local server at widths `375`, `768`, and `1440`, with reduced motion enabled and no serious/critical violations.
 
 Remaining Slice 5 work is authenticated data wiring for operator subsections, complete empty/queued/healthy/degraded/unavailable/failed/unauthorized coverage for every major route, and full PostgreSQL/browser workflow evidence. This is not a Slice 5 completion or production-readiness claim.
+
+For the complete cross-slice audit and the next execution order, continue with [the Tier-1 Slices 1–5 audit and completion handoff](./2026-10-10-tier1-slices-1-5-audit-next-chat.md).
+
+## 2026-10-10 execution update: local database and browser gates
+
+Local Docker/PostgreSQL staging is available and migrations through `0012_fact_project_scope.sql` were applied. `quality:audit:postgres` passed with 111/111 provenance and mutation-ledger coverage across 111 records and 797 events. Staging validation, deterministic Slice 4 report/replay, and the full 18-test Chromium/mobile browser suite passed.
+
+The browser run exposed a review-event sequence collision under parallel traffic. It is fixed by allocating review event sequences inside a repository transaction using a project-scoped PostgreSQL advisory lock; focused tests passed and the full browser suite passed after the rebuild.
+
+The next local boundary is a real authenticated `retain → recall → trace → correct → replay → evaluate` API/SDK diagnosis sequence plus seven-state route coverage. The only required user intervention for Slice 3 is explicit authorization for an external provider measurement and subsequent human review; do not read, paste, or expose credentials. There is no provider adapter in this checkout, so authorize the adapter and an explicit budget/corpus before invoking any provider.
+
+## 2026-10-10 Slice 3 authorized Gemini result
+
+The user authorized Gemini with a `$1` cap and Codex reviewer. A redacted five-case representative measurement ran through the new proposal-only Gemini adapter. It completed in `16,405ms`, recorded estimated cost `$0.01`, and performed zero canonical writes. All five returned proposals failed strict schema validation and were rejected; no human approval was possible or performed. The safe next action is to tighten structured response generation and rerun a valid sample before measuring quality across the full corpus. Do not claim provider quality from this rejection-only run.
+
+## 2026-10-10 Slice 5 continuation checkpoint
+
+Current worktree changes add typed operational state envelopes, project-scoped correction requests, authenticated retain/recall route entry, and safe operator subsection rendering without fabricated staging query parameters. New focused state/handler/operator tests passed. Rebuilt local staging passed all five validation checks and the full Playwright suite passed `18/18` across Chromium and mobile. Full Vitest passed `237` with `6` skipped; typecheck and `git diff --check` passed (existing CRLF warnings only).
+
+Do not mark the Slice 5 diagnosis complete yet: direct PostgreSQL workflow execution needs a non-secret in-agent connection mechanism, and a browser session identity bridge is still needed before subsections can display authenticated route data. Slice 3 provider review/quality and all connector authorization remain separate governed gates.
+
+## 2026-10-10 authenticated diagnosis browser evidence
+
+The missing local diagnosis proof now exists as `tests/e2e/developer-diagnosis.spec.ts`. It passed in Chromium and mobile through authenticated retain, recall, trace, project-scoped correction, replay, evaluation, and protected durable evaluation/replay readback against rebuilt local PostgreSQL staging. The full Playwright suite passed `20/20`; full Vitest passed `239` with `6` skipped; typecheck and diff validation passed. The direct database-unit harness remains environment-gated, but the route workflow is now locally and browser verified through the canonical staging service.
+
+## 2026-10-10 Slice 4 operator approval evidence and local audit
+
+The authenticated operator review action is browser verified on Chromium and mobile. It records the review event against durable evidence, and reviewer identity is now server-derived from the authenticated principal. The deterministic Slice 4 report and replay scripts completed against local PostgreSQL: 512 cases were read back; 24 evaluation runs, 12 correction proposals, 12 comparisons, and 12 workflow replays were read back; all eleven governed replay categories improved without regression.
+
+Current direct validation: full Vitest `72` files / `240` tests passed with `6` skipped; typecheck passed; PostgreSQL provenance/event-ledger audit scanned 124 records and 1,065 events with complete coverage; staging validation passed all five checks; full serial Playwright passed `20/20`. One prior six-worker Playwright run suffered a transient mobile post-mutation event-read connection reset, so parallel-load resilience remains unproven despite the isolated and serial browser passes.
+
+Next governed boundary: repair the Gemini structured proposal contract so a valid, redacted proposal sample can be measured and human-reviewed. Do not rerun a paid provider call or authorize any connector without a renewed explicit budget/authorization decision.
+
+## 2026-10-10 Gemini proposal-contract repair
+
+The local Gemini adapter now rejects unknown source-event references and binds immutable scope, timestamp, Gemini source metadata, and evidence ID from the supplied event before schema validation. Focused provider/extraction tests passed `10/10` and typecheck passed. No second provider call was made. The next action requires a renewed explicit spend authorization, followed by a valid redacted proposal sample and Codex human review; connector authorization remains separate.
+
+## 2026-10-10 final local Slice 1–5 evidence
+
+All locally implementable Slice 1–5 requirements are complete. Direct PostgreSQL diagnosis passed; the corrected 200/200/200 retain-recall-worker SLO workload had zero failures, zero dead letters, retain p95 `34.33ms`, recall p95 `59.42ms`, and full worker completion within 60 seconds. Authenticated operator subsections now load protected durable data without fabricated scope, and proposal-only review routing covers allow, deny, redact, require-review, and defer with rejected proposals reporting zero canonical writes.
+
+Final evidence: Vitest `74` files / `247` tests passed with `6` skipped; typecheck passed; serial authenticated Chromium/mobile Playwright passed `24/24`; staging validation passed all five checks; PostgreSQL audit scanned 124 records and 1,076 events at 100% provenance and mutation-ledger coverage; diff check passed with existing CRLF warnings only.
+
+Remaining only external/governed holds: renewed Gemini spend authorization plus a valid redacted sample for human-reviewed quality measurement, and separately authorized connector/live/production evidence. No connector authorization was performed.

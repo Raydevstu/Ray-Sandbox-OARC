@@ -13,9 +13,10 @@ export type Projection = MemoryScope & Readonly<{ id: string; value: Readonly<Re
 export type Snapshot = MemoryScope & Readonly<{ id: string; createdAt: string }>;
 export type MemoryPolicyRecord = MemoryScope & Readonly<{ projectId: string; policy: MemoryPolicy }>;
 export interface CanonicalRepository {
+  retainMemoryAtomic(evidence: EvidenceRecord, fact: MemoryFactRevision, event: EventRecord, outbox: OutboxRecord): Promise<void>;
   appendEvidence(record: EvidenceRecord): Promise<void>;
   appendRevision(record: MemoryFactRevision): Promise<void>;
-  findFacts(scope: MemoryScope): Promise<readonly MemoryFactRevision[]>;
+  findFacts(scope: MemoryScope & Readonly<{ projectId?: string }>): Promise<readonly MemoryFactRevision[]>;
   tombstoneFact(scope: MemoryScope, factId: string, deletedAt: string): Promise<void>;
   listEntities(scope: MemoryScope, limit: number): Promise<readonly EntitySummary[]>;
   appendEvent(record: EventRecord): Promise<void>;
@@ -25,6 +26,7 @@ export interface CanonicalRepository {
   getByIdempotencyKey(scope: MemoryScope, key: string): Promise<EventRecord | undefined>;
   writeSnapshot(snapshot: Snapshot): Promise<void>;
   appendProjectEvent(event: ProjectEvent): Promise<void>;
+  appendProjectEventNextSequence(event: ProjectEvent): Promise<ProjectEvent>;
   listProjectEvents(scope: MemoryScope, projectId: string): Promise<readonly ProjectEvent[]>;
   listProjectMemory(scope: MemoryScope, projectId: string): Promise<readonly ProjectMemoryRecord[]>;
   appendProjectMemory(record: ProjectMemoryRecord): Promise<void>;

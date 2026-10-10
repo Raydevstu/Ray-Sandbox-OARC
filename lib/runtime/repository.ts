@@ -1,6 +1,6 @@
 import { Pool, type PoolConfig } from 'pg';
 import { PostgresRepository } from './repositories/postgres';
-import type { CanonicalRepository, SqlExecutor } from './repositories/interfaces';
+import type { CanonicalRepository, SqlExecutor, TransactionExecutor } from './repositories/interfaces';
 import type { MemoryScope } from './contracts';
 
 let pool: Pool | null = null;
@@ -23,7 +23,26 @@ const executeWithPool = (currentPool: Pool): SqlExecutor => async (query, params
   return result.rows as readonly Record<string, unknown>[];
 };
 
-export const createRuntimeRepository = (scope: MemoryScope): CanonicalRepository => new PostgresRepository(executeWithPool(getPool()), scope);
+const transactionWithPool = (currentPool: Pool): TransactionExecutor => async <T>(operation: (execute: SqlExecutor) => Promise<T>): Promise<T> => {
+  const client = await currentPool.connect();
+  const execute: SqlExecutor = async (query, params) => (await client.query(query, [...params])).rows as readonly Record<string, unknown>[];
+  try {
+    await client.query('BEGIN');
+    const result = await operation(execute);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const createRuntimeRepository = (scope: MemoryScope): CanonicalRepository => {
+  const currentPool = getPool();
+  return new PostgresRepository(executeWithPool(currentPool), scope, transactionWithPool(currentPool));
+};
 
 export type RuntimeStoreStatus = 'not_configured' | 'schema_unready' | 'healthy' | 'unavailable';
 

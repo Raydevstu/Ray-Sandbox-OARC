@@ -6,11 +6,11 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import {
-  Activity, ArrowUpRight, BrainCircuit, Cpu, Database, Gauge, GitBranch,
+  ArrowUpRight, BrainCircuit, Cpu, Database, Gauge, GitBranch,
   Layers, Sparkles, Workflow, Zap,
 } from "lucide-react";
 import { Badge, Card, CardHeader, Empty, Progress, Sparkline, Stat } from "@/components/ui";
-import { Donut, HBarChart, LineChart } from "@/components/charts";
+import { Donut, HBarChart } from "@/components/charts";
 import { LiveObservabilityChart } from "@/components/oarc-v2/live-observability-chart";
 import type { OarcSeries } from "@/lib/runtime/telemetry";
 import { useSandbox } from "@/lib/store";
@@ -32,11 +32,6 @@ export default function DashboardPage() {
       { label: "Opinion", value: s.opinions.filter((o) => o.bankId === s.activeBankId).length, color: "var(--opinion)" },
     ];
   }, [bankFacts, s.observations, s.opinions, s.activeBankId]);
-
-  const opsLabels = useMemo(
-    () => s.opsSeries.filter((_, i) => i % 4 === 0).map((p) => new Date(p.t).toLocaleTimeString("en-US", { hour: "numeric" })),
-    [s.opsSeries]
-  );
 
   const telemetrySeries = useMemo<readonly OarcSeries[]>(() => [
     { id: "recall", label: "Recall", colorToken: "primary", lineStyle: "solid", enabled: true, points: s.opsSeries.map((point) => ({ timestamp: point.t, value: point.recall })) },
@@ -96,23 +91,12 @@ export default function DashboardPage() {
 
       {/* ops timeline + network mix */}
       <div className="grid lg:grid-cols-[2fr_1fr] gap-4">
-        <Card>
-          <CardHeader
-            title="Operations timeline"
-            subtitle="retain / recall / reflect throughput across the last 48 hours"
-            icon={<Activity size={15} />}
-            right={<Badge color="var(--ok)">● live</Badge>}
-          />
-          <LineChart
-            height={210}
-            labels={opsLabels}
-            series={[
-              { name: "recall", color: "var(--observation)", data: s.opsSeries.filter((_, i) => i % 4 === 0).map((p) => p.recall) },
-              { name: "reflect", color: "var(--opinion)", data: s.opsSeries.filter((_, i) => i % 4 === 0).map((p) => p.reflect) },
-              { name: "retain", color: "var(--world)", data: s.opsSeries.filter((_, i) => i % 4 === 0).map((p) => p.retain) },
-            ]}
-          />
-        </Card>
+        <LiveObservabilityChart
+          title="Operations timeline"
+          description="retain / recall / reflect throughput across the last 48 hours"
+          series={telemetrySeries}
+          events={s.events}
+        />
 
         <Card>
           <CardHeader title="Four-network mix" subtitle="epistemic distribution of the active bank" icon={<Layers size={15} />} />

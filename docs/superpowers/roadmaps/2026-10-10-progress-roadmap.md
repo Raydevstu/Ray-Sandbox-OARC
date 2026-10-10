@@ -50,6 +50,22 @@ The canonical execution blueprint is now [2026-10-10 Apex Evidence-Driven Contro
 
 The following are deliberately frozen until separately authorized: non-local deployment, provider credentials, external rollback/RPO/RTO proof, and live non-Codex connector authorization. Local port `3029` validation remains production-like local evidence only.
 
+## 2026-10-10 Tier-1 audit of Slices 1–5
+
+The direct audit at checkpoint `0d24489` confirms the following evidence position:
+
+| Slice | Status | Pending local work | Held evidence |
+|---|---|---|---|
+| 1 — Enterprise Evidence Integrity Baseline | `PENDING — CAN COMPLETE LOCALLY` | Atomic concurrent retain transaction; broader isolation corpus; reviewable browser seed; export route and authorization; rerun staging/browser gates. | Deployed-target restore/RPO/RTO, external deployment, and production retention evidence. |
+| 2 — Typed Temporal Evidence Graph | `IMPLEMENTED / TESTED / LOCALLY VERIFIED; BROWSER PENDING` | Dedicated authenticated browser journey for as-of, before-upgrade, supersession, contradictions, aliases, and two-hop explanation paths. | None required for local completion; no paid dependency. |
+| 3 — Provider Extraction and Human Approval | `IMPLEMENTED / TESTED; MANUAL/PROVIDER PENDING` | Local deterministic approval-queue fixtures and browser proof that invalid/rejected proposals cannot persist. | Authorized provider run and human-reviewed quality sample; online/paid access may be required. |
+| 4 — Closed-Loop Evaluation and Replay | `COMPLETE FOR LOCAL DETERMINISTIC SCOPE` | Optional local operator approval/replay readback UI and browser evidence; these are governance evidence additions, not replay-core blockers. | Provider/human quality, live connector, and production evidence. |
+| 5 — Developer API and Operator Experience | `PENDING — CAN COMPLETE LOCALLY` | Project-scoped trace filtering; full PostgreSQL SDK workflow; durable operator subsection wiring; seven operational states; authenticated diagnosis journey. | None required for local completion; no paid dependency. |
+
+Current direct checks: `npm test` passed 65 files / 212 tests with 1 file / 5 tests skipped; `npm run typecheck` passed; `git diff --check` passed with existing line-ending warnings. The skipped tests and all held evidence remain explicit and are not inferred as failures or completions.
+
+The authoritative implementation plan is [Tier-1 Slices 1–5 Local Audit and Completion Plan](../plans/2026-10-10-tier1-slices-1-5-audit-completion.md). The next chat should execute Tasks 1, 5, 6, 2, and 4 in that order, prepare Task 3 locally, then pause for provider authorization before claiming provider-quality evidence.
+
 ## 2026-10-10 Slice 5 developer API and operator workspace checkpoint
 
 The first Slice 5 vertical boundary is implemented locally:
@@ -149,3 +165,88 @@ The recommended next action is to connect correction proposals to an authenticat
 - `LOCALLY VERIFIED`: `npm run quality:slice4:replay` persisted and read back `24` runs, `12` correction proposals, `12` replay comparisons, and `12` workflow replays in local PostgreSQL (eleven new fixtures plus the prior fixture). Every fixture retained its source trace through the baseline, proposal, and workflow replay; all eleven comparisons were improved with no regressions.
 - Durable report: [slice-4-replay-report.json](../../benchmarks/slice-4-replay-report.json) records the source run and every baseline, replay, proposal, workflow, trace link, metric set, and before/after delta. This is reproducible local evidence only.
 - `npm run typecheck` passed. External provider/human-reviewed quality, authenticated operator approval/browser workflow, live connector, and production evidence remain release-governance gaps and are not claimed here.
+
+## 2026-10-10 ordered completion pass
+
+- `IMPLEMENTED / TESTED`: durable retention now writes evidence, fact, fact-evidence links, event ledger, and outbox through one repository transaction. Runtime PostgreSQL transactions use a pinned client rather than interleaved pool statements.
+- `IMPLEMENTED / TESTED`: classic facts accept optional `projectId`; retain, recall, lexical retrieval, PostgreSQL reads/writes, and the developer trace route now enforce project filtering when supplied. Migration `0012_fact_project_scope.sql` adds the nullable column and index.
+- `IMPLEMENTED / TESTED`: `/api/project-memory/export` provides authenticated JSON and Markdown manifest downloads with explicit scope, unavailable-store, and validation responses.
+- `IMPLEMENTED / TESTED`: authenticated conflicts and evaluation evidence routes are available at `/api/project-memory/conflicts` and `/api/project-memory/evaluations`; operator subsections now link to durable routes instead of displaying a placeholder-only state.
+- `BROWSER VERIFIED`: the dedicated temporal graph journey passed Chromium and mobile; the operator workspace passed Chromium and mobile at 375, 768, and 1440 widths with reduced-motion, focus, and serious/critical axe checks. The first run against port 3028 returned a stale-app 404 and was not counted; the rerun used this checkout on port 3040.
+- Fresh unit evidence: `npm test` passed `68` files, `218` tests, with `5` skipped; `npm run typecheck` passed. Provider authorization and human-reviewed quality remain held because the repository has no provider adapter or authorized measurement workflow, and no credentials were read or exposed.
+- `LOCALLY VERIFIED`: `npm run staging:validate` passed health, meaningful worker event, import capture lifecycle, worker completion, and canonical provenance. A 100-request concurrent SLO run passed with zero failures, `retain p95 48.94ms`, `recall p95 148.5ms`, and `100/100` worker completion; its configured base URL was the existing `3028` service and is not used as browser identity evidence.
+- PostgreSQL audit rerun was unavailable because `APEX_DATABASE_URL` was not configured in this shell; no audit claim was upgraded from that command.
+
+## 2026-10-10 local PostgreSQL and browser evidence update
+
+- `LOCALLY VERIFIED`: rebuilt Docker staging applied migrations through `0012_fact_project_scope.sql`. `npm run quality:audit:postgres` scanned `111` records and `797` events with provenance and mutation-ledger coverage `111/111` (100%). `npm run staging:validate` passed all five health, worker, capture, completion, and provenance checks.
+- `BENCHMARK VERIFIED` for deterministic local replay only: `npm run quality:slice4:report` persisted `512` cases with grounded accuracy, citation precision, and graph accuracy `1.0`, unsupported-claim rate `0`, and p50/p95 `18/26ms`. `npm run quality:slice4:replay` persisted `24` runs, `12` proposals, `12` comparisons, and `12` workflows; all comparisons improved without regressions.
+- `BROWSER VERIFIED`: the full `npm run test:e2e` suite passed `18/18` on Chromium and mobile against rebuilt local staging. It includes an authenticated review mutation, temporal graph, trace, audit/events/export, responsive operator workspace, keyboard/focus/reduced-motion behavior, and serious/critical axe checks.
+- `IMPLEMENTED / TESTED`: review events now allocate their project sequence transactionally under a PostgreSQL advisory transaction lock. This fixes the concurrent duplicate-sequence failure first exposed by the mobile review browser run; focused repository/review tests passed `11/11`.
+- Fresh regression evidence: `npm test` passed `219` tests with `5` skipped; `npm run typecheck` passed; `git diff --check` passed with existing CRLF conversion warnings only.
+- Remaining gates: Slice 3 has no concrete external provider adapter or authorized provider run, and no human-reviewed measurement. Slice 4 lacks a browser workflow that approves correction proposals and launches replay from the operator UI; its current browser evidence covers evidence-linked memory review mutation. Slice 5 still needs a true end-to-end authenticated SDK/API diagnosis sequence and per-route proof of all seven states. These are not production claims.
+
+## 2026-10-10 Slice 5 state-envelope continuation
+
+- `IMPLEMENTED / TESTED`: developer retain and recall now authenticate before repository construction. Successful retain returns `healthy`; successful recall returns `healthy` or `empty` from the scoped result count. Correction requires `projectId`, so same-bank corrections cannot select another project's fact.
+- `IMPLEMENTED / TESTED`: correction, trace, replay, and evaluation now emit an explicit state on successful and failed responses. The shared operational-state contract defines `empty`, `queued`, `healthy`, `degraded`, `unavailable`, `failed`, and `unauthorized`.
+- `IMPLEMENTED / TESTED`: operator section pages no longer construct a `staging-*` tenant/bank/project URL. They fail closed with a typed `unauthorized` state until a browser identity bridge supplies authenticated project scope.
+- `LOCALLY VERIFIED / BROWSER VERIFIED`: rebuilt local staging passed `npm run staging:validate` (five checks) and the complete `npm run test:e2e` suite (`18/18` Chromium/mobile). `npm test` passed `237` tests with `6` skipped; typecheck passed; `git diff --check` passed with existing CRLF warnings.
+- Remaining: direct PostgreSQL diagnosis-test execution still requires a non-secret test-runtime connection mechanism; the browser has no session identity bridge for operator subsection data. Provider and connector authorization remain separate and unchanged.
+
+## 2026-10-10 authenticated diagnosis workflow evidence
+
+- `LOCALLY VERIFIED / BROWSER VERIFIED`: `tests/e2e/developer-diagnosis.spec.ts` passed on Chromium and mobile against rebuilt Docker staging. It exercised authenticated `retain → recall → trace → correct → replay → evaluate`, then read durable evaluation and replay artifacts from the protected evaluations route. The journey used the canonical PostgreSQL-backed app service without exposing a connection string.
+- Current regression evidence: full Playwright suite passed `20/20`; full Vitest passed `239` with `6` skipped; typecheck passed; `git diff --check` passed with existing CRLF warnings.
+
+## 2026-10-10 Slice 4 operator evidence and final local audit update
+
+- `LOCALLY VERIFIED`: `npm run quality:slice4:report` persisted and read back the deterministic 512-case evaluation run from local PostgreSQL. `npm run quality:slice4:replay` persisted/read back 24 runs, 12 correction proposals, 12 replay comparisons, and 12 workflow replays; all 11 governed replay categories improved without regression.
+- `BROWSER VERIFIED`: the authenticated evidence-linked review mutation passed in Chromium and mobile. The complete serial Playwright suite passed `20/20`, including the developer diagnosis, operator audit/events/manifest/trace, temporal graph, approval mutation, responsive 375/768/1440 layout, keyboard focus, reduced motion, and serious/critical axe checks.
+- `IMPLEMENTED / TESTED`: review events now take their reviewer identity from the authenticated principal rather than an untrusted client payload. Shared retain/recall handler failures now return the same explicit operational state contract as successful responses. Full Vitest passed `72` files / `240` tests, with `6` skipped; typecheck passed.
+- `LOCALLY VERIFIED`: `npm run quality:audit:postgres` scanned 124 records and 1,065 events with 100% provenance and mutation-ledger coverage. `npm run staging:validate` passed all five checks.
+- Reliability note: one 6-worker Playwright run had a transient mobile event-read `ECONNRESET` after a successful review mutation. The isolated mobile and Chromium cases and the full serial `20/20` rerun passed. Parallel-load resilience is therefore not claimed from this browser evidence.
+- Remaining governed hold: Slice 3 needs a valid provider proposal sample before human review/quality measurement can proceed. Connector authorization and live connector proof remain untouched.
+
+## 2026-10-10 Slice 3 authorized Gemini measurement
+
+- `IMPLEMENTED / TESTED`: `lib/runtime/providers/gemini.ts` implements a Gemini `generateContent` adapter behind the existing provider-neutral proposal boundary. It redacts emails and token-like strings before transmission, requires JSON-only responses, uses timeouts/candidate/cost gates already enforced by `extractWithProvider`, and has no canonical persistence capability.
+- `LIVE CONNECTOR VERIFIED` for the limited authorized measurement: `npm run quality:provider:gemini` invoked Gemini 2.5 Flash over five redacted representative deterministic cases with a configured maximum budget of `$1`. The recorded estimated request cost was `$0.01`, latency was `16,405ms`, and canonical writes were `0`.
+- Reviewer result: Gemini returned five proposals but none satisfied the existing strict record contract; all five were rejected. There are no accepted proposals to promote or manually approve. This is correct safety behavior, not provider quality evidence.
+- The redacted report is [gemini-provider-measurement.json](../../benchmarks/gemini-provider-measurement.json). Focused Gemini/extraction tests passed `10/10`; typecheck passed. Quality precision, recall, or cost claims remain unavailable until the provider response schema is tightened and a valid, human-reviewable sample succeeds.
+
+## 2026-10-10 Slice 3 proposal-contract repair
+
+- `IMPLEMENTED / TESTED`: Gemini proposals must now reference a supplied immutable source event. The adapter rejects unknown source events and server-binds tenant, bank, project, event time, Gemini source metadata, and the evidence reference before governed schema validation.
+- Focused Gemini/provider extraction tests passed `10/10`; typecheck passed. No new provider request was made and no credential was read or exposed.
+- Required hold: the previous authorized measurement budget was consumed. A new explicit budget authorization is required before a remeasurement; only a valid redacted proposal sample can proceed to Codex human review and quality metrics.
+
+## 2026-10-10 final local Slice 1–5 completion evidence
+
+- `LOCALLY VERIFIED`: direct PostgreSQL diagnosis integration passed. The corrected sustained workload completed 200 authenticated retains, 200 recalls, and 200 durable worker events with zero failures, zero dead letters, 100% worker completion within 60 seconds, retain p95 `34.33ms`, recall p95 `59.42ms`, and queue-delay p95 `10ms`.
+- `IMPLEMENTED / TESTED / BROWSER VERIFIED`: authenticated operator sections now invoke protected durable handlers in-process with the caller's forwarded identity and explicit project scope; anonymous access remains `unauthorized`. The proposal-only safety endpoint deterministically returns `allow`, `deny`, `redact`, `require_review`, or `defer`, and returns `canonicalWrites: 0` for rejected malformed proposals.
+- Final regression evidence: Vitest `74` files / `247` tests passed with `6` skipped; TypeScript passed; serial Chromium/mobile Playwright passed `24/24`; `npm run staging:validate` passed all five checks; PostgreSQL audit scanned 124 records and 1,076 events with complete provenance and mutation-ledger coverage; `git diff --check` passed with existing CRLF warnings only.
+- External holds remain unchanged: a renewed explicit provider-spend authorization is required before Gemini remeasurement and human review; connector authorization, live connector proof, deployment, and production proof were not attempted.
+
+## 2026-10-10 local operator identity bridge and evidence dashboard
+
+- `IMPLEMENTED / TESTED`: the local-only operator bridge issues an HttpOnly, server-owned session for the allowlisted `staging` scope. Production configuration always requires JWT and cannot enable the development principal, even when `APEX_ALLOW_DEV_PRINCIPAL=true`; local staging is explicitly marked `NODE_ENV=development` in `docker-compose.staging.yml`.
+- `IMPLEMENTED / TESTED`: `app/api/local/operator/evidence` reads canonical repository data from the session-bound tenant/bank/project scope and returns only redacted health, event, trace-rationale, conflict, policy, evaluation, and replay summaries with explicit operational states.
+- `IMPLEMENTED / TESTED`: protected project routes now apply optional principal bank/project bindings, so changing query parameters cannot cross the server-issued session scope. Anonymous requests remain unauthorized.
+- `BROWSER VERIFIED` for the current checkout's local bridge surface: focused Chromium/mobile Playwright passed `4/4` at 375/768/1440 widths with reduced motion, visible focus, and no serious/critical axe violations. It verified deliberate sign-in, dashboard rendering, browser-cookie scope denial, and explicit unauthorized/unavailable states against the checkout-local server on port `3038`.
+- Fresh regression evidence: full Vitest passed `78` files / `257` tests with `6` skipped; `npm run typecheck` passed; `git diff --check` passed with existing CRLF conversion warnings only.
+- Evidence boundary: the browser run used an intentionally unconfigured local SQLite runtime, so it does not claim PostgreSQL durable readback, staging validation, production authentication, live connector, provider, or deployment evidence.
+
+## 2026-10-10 enterprise visual gallery preview
+
+- `IMPLEMENTED / TESTED`: added the isolated `/sandbox/design-gallery` local preview with a bounded synthetic command-center stream, range/series/pause controls, searchable/filterable/sortable evidence table with detail inspection, and an accessible evidence-topology view. It has no database, evidence-route, connector, or production-authentication dependency.
+- `BROWSER VERIFIED`: focused Chromium and mobile Playwright passed `4/4` against this checkout on port `3042`, exercising chart controls, evidence filtering and selection, topology node selection, visible focus, reduced motion, 375/768/1440 widths, and no serious/critical axe violations.
+- `TESTED`: focused gallery unit tests passed `5/5`; full Vitest passed `79` files / `262` tests with `6` skipped; TypeScript passed; `git diff --check` passed with existing CRLF conversion warnings only.
+- Design boundary: gallery data is explicitly synthetic. It is a visual-selection aid and does not claim live PostgreSQL evidence, a connector feed, production telemetry, benchmark, or deployment verification.
+
+## 2026-10-10 interactive legacy dashboard polish
+
+- `IMPLEMENTED / TESTED`: the existing `/sandbox` Operations timeline now reuses the bounded `LiveObservabilityChart` stream rather than a static SVG snapshot. It preserves the dashboard's layout, colors, historic local-series data, and hover behavior while adding pause/resume, zoom, reset, and chart/table controls. New local sandbox retain, recall, and reflect events append to the visible bounded series.
+- `IMPLEMENTED / TESTED`: Four-network mix rows are now keyboard-selectable buttons; selected and hovered networks receive the same visual emphasis. Shared telemetry tables are keyboard-focusable when horizontally or vertically scrollable.
+- `BROWSER VERIFIED`: focused dashboard and gallery Playwright checks ran serially on Chromium and mobile against this checkout at port `3042`, with 375/768/1440 layouts, reduced motion, keyboard selection, and zero serious/critical axe violations. Parallel browser execution against the shared development server timed out while rendered pages were otherwise available, so no parallel-load claim is made.
+- Fresh regression evidence: focused telemetry/gallery units passed `13/13`; full Vitest passed `79` files / `262` tests with `6` skipped; TypeScript passed. This dashboard consumes browser-local sandbox state and seeded history only. It is not PostgreSQL, connector, production telemetry, benchmark, or deployment evidence.

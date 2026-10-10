@@ -41,6 +41,16 @@ describe('scoped repository ports', () => {
     expect(calls[1].query).toContain('INSERT INTO project_memory_records');
     await expect(repository.appendProjectEvent({ ...event, tenantId: 't2' })).rejects.toThrow('scope');
   });
+  it('assigns project event sequences inside a project-scoped transaction', async () => {
+    const calls: string[] = [];
+    const repository = new PostgresRepository(async (query) => { calls.push(query); return query.includes('MAX(sequence)') ? [{ sequence: 7 }] : []; }, { tenantId: 't1', bankId: 'b1' });
+    const event = { tenantId: 't1', bankId: 'b1', id: 'review-1', projectId: 'p1', type: 'ProjectMemoryReviewCompleted', payload: {}, occurredAt: '2026-10-10T00:00:00.000Z', sequence: 0 } as const;
+    await expect(repository.appendProjectEventNextSequence(event)).resolves.toMatchObject({ sequence: 7 });
+    expect(calls).toContain('BEGIN');
+    expect(calls.some((query) => query.includes('pg_advisory_xact_lock'))).toBe(true);
+    expect(calls.some((query) => query.includes('INSERT INTO project_events'))).toBe(true);
+    expect(calls).toContain('COMMIT');
+  });
   it('normalizes PostgreSQL Date values before returning project memory records', async () => {
     const repository = new PostgresRepository(async (query) => query.includes('FROM project_memory_records') ? [{ tenantId: 't1', bankId: 'b1', projectId: 'p1', id: 'r1', type: 'decision', title: 'Decision', content: 'Use PostgreSQL', status: 'active', confidence: 1, importance: 'critical', source: {}, evidence: [], supersedes: [], relatedRecords: [], createdAt: new Date('2026-10-07T00:00:00.000Z'), updatedAt: new Date('2026-10-07T01:00:00.000Z') }] : [], { tenantId: 't1', bankId: 'b1' });
     await expect(repository.listProjectMemory({ tenantId: 't1', bankId: 'b1' }, 'p1')).resolves.toMatchObject([{ createdAt: '2026-10-07T00:00:00.000Z', updatedAt: '2026-10-07T01:00:00.000Z' }]);

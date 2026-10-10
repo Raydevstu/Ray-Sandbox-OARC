@@ -95,5 +95,5 @@ export function LiveObservabilityChart({
 
 function TelemetryTable({ rows }: Readonly<{ rows: ReturnType<typeof telemetryTableRows> }>) {
   const labels = rows[0]?.values.map((value) => value.label) ?? [];
-  return <div className="oarc-live-chart-table-wrap"><table className="oarc-live-chart-table"><caption>Telemetry values by timestamp</caption><thead><tr><th scope="col">Time</th>{labels.map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.timestamp}><th scope="row">{new Date(row.timestamp).toLocaleTimeString()}</th>{row.values.map((value) => <td key={value.label}>{value.value ?? "—"}</td>)}</tr>)}</tbody></table></div>;
+  return <div className="oarc-live-chart-table-wrap" tabIndex={0} aria-label="Telemetry table"><table className="oarc-live-chart-table"><caption>Telemetry values by timestamp</caption><thead><tr><th scope="col">Time</th>{labels.map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.timestamp}><th scope="row">{new Date(row.timestamp).toLocaleTimeString()}</th>{row.values.map((value) => <td key={value.label}>{value.value ?? "—"}</td>)}</tr>)}</tbody></table></div>;
 }

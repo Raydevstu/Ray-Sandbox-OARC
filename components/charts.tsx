@@ -309,6 +309,8 @@ export function Donut({
   const c = 2 * Math.PI * r;
   let offset = 0;
   const [hover, setHover] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const activeSlice = hover ?? selected;
   return (
     <div className="flex items-center gap-5">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
@@ -322,12 +324,12 @@ export function Donut({
               r={r}
               fill="none"
               stroke={s.color}
-              strokeWidth={hover === s.label ? thickness + 4 : thickness}
+              strokeWidth={activeSlice === s.label ? thickness + 4 : thickness}
               strokeDasharray={`${frac * c - 2} ${c - frac * c + 2}`}
               strokeDashoffset={-offset * c}
               strokeLinecap="round"
               className="transition-all cursor-pointer"
-              opacity={hover && hover !== s.label ? 0.4 : 1}
+              opacity={activeSlice && activeSlice !== s.label ? 0.4 : 1}
               onMouseEnter={() => setHover(s.label)}
               onMouseLeave={() => setHover(null)}
             />
@@ -336,25 +338,28 @@ export function Donut({
           return el;
         })}
         <text x={size / 2} y={size / 2 - 2} textAnchor="middle" fontSize="20" fontWeight="700" fill="var(--text)" className="rotate-90" style={{ transformOrigin: "center" }}>
-          {hover ? slices.find((s) => s.label === hover)?.value : centerValue}
+          {activeSlice ? slices.find((s) => s.label === activeSlice)?.value : centerValue}
         </text>
         <text x={size / 2} y={size / 2 + 16} textAnchor="middle" fontSize="9" fill="var(--faint)" className="rotate-90" style={{ transformOrigin: "center" }}>
-          {hover ?? centerLabel}
+          {activeSlice ?? centerLabel}
         </text>
       </svg>
       <div className="space-y-1.5 min-w-0">
         {slices.map((s) => (
-          <div
+          <button
             key={s.label}
-            className="flex items-center gap-2 text-xs cursor-pointer"
+            type="button"
+            aria-pressed={selected === s.label}
+            className="flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-left text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             onMouseEnter={() => setHover(s.label)}
             onMouseLeave={() => setHover(null)}
+            onClick={() => setSelected((current) => current === s.label ? null : s.label)}
           >
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
-            <span className={cn("truncate", hover === s.label ? "text-ink" : "text-muted")}>{s.label}</span>
+            <span className={cn("truncate", activeSlice === s.label ? "text-ink" : "text-muted")}>{s.label}</span>
             <span className="ml-auto font-mono text-ink tabular-nums">{s.value}</span>
             <span className="text-faint tabular-nums w-9 text-right">{Math.round((s.value / total) * 100)}%</span>
-          </div>
+          </button>
         ))}
       </div>
     </div>

@@ -25,10 +25,11 @@ export class TestRepository implements CanonicalRepository {
   private readonly graphEdges: GraphEdge[] = [];
   private readonly graphConflicts: GraphConflictRecord[] = [];
   constructor(private readonly tenantId: string) {}
+  async retainMemoryAtomic(evidence: EvidenceRecord, fact: MemoryFactRevision, event: EventRecord, outbox: OutboxRecord) { this.check(evidence); this.check(fact); this.check(event); this.check(outbox); this.evidence.push({ ...evidence }); this.facts.push({ ...fact, evidenceIds: [...fact.evidenceIds] }); this.events.push({ ...event, payload: { ...event.payload } }); this.outbox.push({ ...outbox }); this.idempotency.set(outbox.idempotencyKey, { ...event, payload: { ...event.payload } }); }
   private check(scope: MemoryScope) { if (scope.tenantId !== this.tenantId || !scope.bankId) throw new Error('scope denied'); }
   async appendEvidence(record: EvidenceRecord) { this.check(record); this.evidence.push({ ...record }); }
   async appendRevision(record: MemoryFactRevision) { this.check(record); this.facts.push({ ...record, evidenceIds: [...record.evidenceIds] }); }
-  async findFacts(scope: MemoryScope) { this.check(scope); return this.facts.filter((fact) => fact.tenantId === scope.tenantId && fact.bankId === scope.bankId && !this.deleted.has(fact.id)).map((fact) => ({ ...fact, evidenceIds: [...fact.evidenceIds] })); }
+  async findFacts(scope: MemoryScope & Readonly<{ projectId?: string }>) { this.check(scope); return this.facts.filter((fact) => fact.tenantId === scope.tenantId && fact.bankId === scope.bankId && (!scope.projectId || fact.projectId === scope.projectId) && !this.deleted.has(fact.id)).map((fact) => ({ ...fact, evidenceIds: [...fact.evidenceIds] })); }
   async tombstoneFact(scope: MemoryScope, factId: string, _deletedAt: string) { this.check(scope); this.deleted.add(factId); }
   async listEntities(scope: MemoryScope, _limit: number): Promise<readonly EntitySummary[]> { this.check(scope); return []; }
   async appendEvent(record: EventRecord) { this.check(record); this.events.push({ ...record, payload: { ...record.payload } }); this.idempotency.set(record.id, { ...record, payload: { ...record.payload } }); }
@@ -38,6 +39,7 @@ export class TestRepository implements CanonicalRepository {
   async getByIdempotencyKey(scope: MemoryScope, key: string) { this.check(scope); return this.idempotency.get(key); }
   async writeSnapshot(snapshot: Snapshot) { this.check(snapshot); this.snapshots.push({ ...snapshot }); }
   async appendProjectEvent(event: ProjectEvent) { this.check(event); this.projectEvents.push({ ...event, payload: { ...event.payload } }); }
+  async appendProjectEventNextSequence(event: ProjectEvent) { this.check(event); const sequence = Math.max(0, ...this.projectEvents.filter((candidate) => candidate.projectId === event.projectId).map((candidate) => candidate.sequence)) + 1; const persisted = { ...event, sequence }; this.projectEvents.push({ ...persisted, payload: { ...persisted.payload } }); return persisted; }
   async listProjectEvents(scope: MemoryScope, projectId: string) { this.check(scope); return this.projectEvents.filter((event) => event.projectId === projectId).sort((a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id)); }
   async listProjectMemory(scope: MemoryScope, projectId: string) { this.check(scope); return this.projectMemory.filter((record) => record.projectId === projectId).map((record) => ({ ...record, evidence: [...record.evidence], supersedes: [...record.supersedes], relatedRecords: [...record.relatedRecords] })); }
   async appendProjectMemory(record: ProjectMemoryRecord) { this.check(record); this.projectMemory.push(record); }

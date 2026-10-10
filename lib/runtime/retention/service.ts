@@ -13,9 +13,6 @@ export const retainMemory = async (input: RetainRequest, repository: CanonicalRe
   const evidence = EvidenceRecordSchema.parse(buildEvidence(normalized, now));
   const fact = MemoryFactRevisionSchema.parse(buildFact(normalized, evidence, now));
   const event = EventRecordSchema.parse(createEventEnvelope({ ...normalized, type: 'MemoryRetained', occurredAt: now, payload: { content: normalized.content, fact, evidence } }));
-  await repository.appendEvidence(evidence);
-  await repository.appendRevision(fact);
-  await repository.appendEvent(event);
-  await repository.appendOutbox(createOutboxRecord(event, normalized.idempotencyKey));
+  await repository.retainMemoryAtomic(evidence, fact, event, createOutboxRecord(event, normalized.idempotencyKey));
   return { fact, evidence, event, replayed: false };
 };

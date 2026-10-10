@@ -29,8 +29,8 @@ const runBatches = async (count, operation, batchSize = concurrency) => {
 };
 
 const startedAt = new Date();
-const retainResults = await runBatches(iterations, (index) => call('/api/v1/memory/retain', { tenantId: scope.tenantId, bankId: scope.bankId, content: `SLO workload fact ${runId}-${index}: PostgreSQL remains the canonical persistence store.`, source: 'slo-workload', provenance: 'local-measured-workload', idempotencyKey: `${runId}-retain-${index}` }), 1);
-const recallResults = await runBatches(iterations, () => call('/api/v1/memory/recall', { tenantId: scope.tenantId, bankId: scope.bankId, query: 'canonical PostgreSQL persistence store', limit: 10 }));
+const retainResults = await runBatches(iterations, (index) => call('/api/v1/memory/retain', { tenantId: scope.tenantId, bankId: scope.bankId, projectId: scope.projectId, content: `SLO workload fact ${runId}-${index}: PostgreSQL remains the canonical persistence store.`, source: 'slo-workload', provenance: 'local-measured-workload', idempotencyKey: `${runId}-retain-${index}` }, devHeaders), 1);
+const recallResults = await runBatches(iterations, () => call('/api/v1/memory/recall', { tenantId: scope.tenantId, bankId: scope.bankId, projectId: scope.projectId, query: 'canonical PostgreSQL persistence store', limit: 10 }, devHeaders));
 const eventResults = await runBatches(iterations, (index) => call('/api/project-memory/codex-event', { tenantId: scope.tenantId, bankId: scope.bankId, projectId: scope.projectId, conversationId: runId, messageId: `${runId}-event-${index}`, timestamp: new Date().toISOString(), kind: 'mcp-call', method: 'conversation/message', name: 'slo-workload', role: index % 2 ? 'assistant' : 'user', content: `Measured worker workload ${runId}-${index}: preserve evidence and event-ledger lineage.` }, devHeaders), 1);
 
 const failed = (results) => results.filter((result) => !result.response.ok || !result.payload.ok).length;

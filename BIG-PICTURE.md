@@ -30,5 +30,7 @@ nothing found
 - Add the dedicated Slice 2 graph browser journey - Tier-1 audit plan.
 - Obtain explicit provider authorization for Slice 3 quality measurement - frozen external scope in the canonical blueprint.
 
+The dated Tier-1 audit and next-chat handoff are [the completion plan](docs/superpowers/plans/2026-10-10-tier1-slices-1-5-audit-completion.md) and [the audit handoff](docs/superpowers/handoffs/2026-10-10-tier1-slices-1-5-audit-next-chat.md). They record the direct test snapshot, local-only gaps, and external holds.
+
 _Age and wiring measured 2026-10-10. This map preserves the evidence boundaries in the roadmap and handoff._
 <!-- open-steps:end -->

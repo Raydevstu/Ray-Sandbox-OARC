@@ -18,6 +18,12 @@ describe('runtime authorization', () => {
     expect(() => authorize(principal, 'memory:write', scope)).toThrow();
     expect(() => authorize(principal, 'memory:read', { tenantId: 't2', bankId: 'b1' })).toThrow();
   });
+  it('enforces bank and project bindings for a scoped local session', () => {
+    const principal = { subject: 's', tenantId: 't1', bankId: 'b1', projectId: 'p1', scopes: new Set(['memory:read' as const]), source: 'dev' as const };
+    expect(() => authorize(principal, 'memory:read', { tenantId: 't1', bankId: 'b1', projectId: 'p1' })).not.toThrow();
+    expect(() => authorize(principal, 'memory:read', { tenantId: 't1', bankId: 'b2', projectId: 'p1' })).toThrow('scope does not match principal');
+    expect(() => authorize(principal, 'memory:read', { tenantId: 't1', bankId: 'b1', projectId: 'p2' })).toThrow('scope does not match principal');
+  });
   it('rejects a JWT with the wrong issuer', async () => {
     const token = `eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0.${Buffer.from(JSON.stringify({ sub: 's', tenant_id: 't1', iss: 'wrong' })).toString('base64url')}.AA`;
     await expect(authenticateJwt(token, { ...config, jwtIssuer: 'expected', jwksUrl: 'http://jwks' })).rejects.toThrow('invalid JWT claims');

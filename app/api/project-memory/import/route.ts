@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { authenticateRequest } from '@/lib/runtime/auth';
+import { authenticateRequest, authorize } from '@/lib/runtime/auth';
 import { parseRuntimeConfig } from '@/lib/runtime/config';
 import { createRuntimeRepository, isRuntimeStoreConfigured } from '@/lib/runtime/repository';
 import { importConversationExport, type ImportPlatform } from '@/lib/runtime/cross-platform-import';
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   try {
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
     const input = EnvelopeSchema.parse(await request.json());
-    if (principal.tenantId !== input.tenantId) return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
+    authorize(principal, 'events:write', input);
     if (!isRuntimeStoreConfigured()) return NextResponse.json({ ok: false, error: 'canonical store is not configured' }, { status: 503 });
     const scope = { tenantId: input.tenantId, bankId: input.bankId };
     const imported = importConversationExport(scope, input);
@@ -44,6 +44,6 @@ export async function POST(request: Request) {
   } catch (error) {
     recordCapture('failed');
     const message = error instanceof z.ZodError ? 'invalid import envelope' : error instanceof Error ? error.message : 'conversation import failed';
-    return NextResponse.json({ ok: false, error: message }, { status: message.includes('credential') ? 401 : 400 });
+    return NextResponse.json({ ok: false, error: message }, { status: message.includes('credential') ? 401 : message.includes('scope') || message.includes('permission') ? 403 : 400 });
   }
 }

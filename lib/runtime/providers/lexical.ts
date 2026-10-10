@@ -1,7 +1,7 @@
 import type { MemoryFactRevision, MemoryScope } from '../contracts';
 import type { CanonicalRepository } from '../repositories/interfaces';
 
-export type LexicalSearchRequest = MemoryScope & Readonly<{ query: string; limit: number }>;
+export type LexicalSearchRequest = MemoryScope & Readonly<{ projectId?: string; query: string; limit: number }>;
 export type RankedCandidate = Readonly<{ fact: MemoryFactRevision; score: number; matchedTerms: readonly string[] }>;
 const terms = (text: string) => [...new Set(text.toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length > 1))];
 export class LexicalProvider {

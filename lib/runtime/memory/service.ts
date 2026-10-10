@@ -2,7 +2,7 @@ import type { CanonicalRepository } from '../repositories/interfaces';
 import { createEventEnvelope, createOutboxRecord } from '../events/envelope';
 import type { MemoryScope } from '../contracts';
 
-export const updateMemory = async (scope: MemoryScope, factId: string, claim: string, repository: CanonicalRepository) => {
+export const updateMemory = async (scope: MemoryScope & Readonly<{ projectId?: string }>, factId: string, claim: string, repository: CanonicalRepository) => {
   const normalized = claim.trim();
   if (!normalized) throw new Error('text is required');
   const current = (await repository.findFacts(scope)).find((fact) => fact.id === factId);
