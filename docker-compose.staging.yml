@@ -39,6 +39,7 @@ services:
       APEX_AUDIT_BANK_ID: staging-bank
       APEX_AUDIT_PROJECT_ID: staging-project
       APEX_ALLOW_DEV_PRINCIPAL: "true"
+      APEX_DEV_PROJECT_IDS: "RayBots,ray-dashboard-test"
       APEX_PROFILE_RECALL: "true"
       APEX_DB_POOL_MAX: "${APEX_DB_POOL_MAX:-5}"
       APEX_RECALL_CONCURRENCY: "${APEX_RECALL_CONCURRENCY:-100}"
