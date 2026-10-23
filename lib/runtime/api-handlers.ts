@@ -41,3 +41,9 @@ export const readScope = async (request: Request): Promise<{ tenantId: string; b
   if (typeof body.tenantId !== 'string' || typeof body.bankId !== 'string') throw new Error('invalid runtime scope');
   return { tenantId: body.tenantId, bankId: body.bankId };
 };
+
+export const readProjectScope = async (request: Request): Promise<{ tenantId: string; bankId: string; projectId: string }> => {
+  const body = await request.clone().json() as { tenantId?: unknown; bankId?: unknown; projectId?: unknown };
+  if (typeof body.tenantId !== 'string' || typeof body.bankId !== 'string' || typeof body.projectId !== 'string') throw new Error('invalid runtime project scope');
+  return { tenantId: body.tenantId, bankId: body.bankId, projectId: body.projectId };
+};

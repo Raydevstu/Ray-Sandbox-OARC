@@ -18,8 +18,14 @@ describe('runtime configuration', () => {
     expect(config.allowDevelopmentPrincipal).toBe(false);
   });
 
-  it('allows a development principal only with an explicit opt-in', () => {
+  it('never enables a development principal in production', () => {
     const config = parseRuntimeConfig({ NODE_ENV: 'production', APEX_DATABASE_URL: 'postgres://example', APEX_ALLOW_DEV_PRINCIPAL: 'true' });
+    expect(config.requireJwt).toBe(true);
+    expect(config.allowDevelopmentPrincipal).toBe(false);
+  });
+
+  it('allows a development principal only in an explicitly enabled local environment', () => {
+    const config = parseRuntimeConfig({ NODE_ENV: 'development', APEX_DATABASE_URL: 'postgres://example', APEX_ALLOW_DEV_PRINCIPAL: 'true' });
     expect(config.requireJwt).toBe(false);
     expect(config.allowDevelopmentPrincipal).toBe(true);
   });

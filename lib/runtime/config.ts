@@ -2,7 +2,7 @@ import { RuntimeConfigError } from './errors';
 
 export type RuntimeConfig = Readonly<{ environment: 'development' | 'test' | 'production'; databaseUrl: string; logLevel: 'debug' | 'info' | 'warn' | 'error'; jwtIssuer?: string; jwksUrl?: string; allowDevelopmentPrincipal: boolean; requireJwt: boolean; developmentProjectIds: readonly string[] }>;
 export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
-  const environment = env.NODE_ENV ?? 'development';
+  const environment = env.APEX_RUNTIME_ENV ?? env.NODE_ENV ?? 'development';
   if (!['development', 'test', 'production'].includes(environment)) throw new RuntimeConfigError(`Invalid NODE_ENV: ${environment}`);
   const databaseUrl = env.APEX_DATABASE_URL ?? 'file:./apex.db';
   if (!databaseUrl.trim()) throw new RuntimeConfigError('APEX_DATABASE_URL must not be empty');

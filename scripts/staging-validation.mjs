@@ -1,10 +1,11 @@
 import process from 'node:process';
 import { Pool } from 'pg';
+import { runCodexIntegrationProof } from './codex-integration-proof.mjs';
 
 const baseUrl = process.env.STAGING_BASE_URL ?? 'http://127.0.0.1:3028';
 const databaseUrl = process.env.STAGING_DATABASE_URL ?? 'postgresql://staging:staging_local_only@127.0.0.1:5443/ray_sandbox_staging';
 const scope = { tenantId: 'staging-tenant', bankId: 'staging-bank', projectId: 'staging-project' };
-const headers = { 'content-type': 'application/json', 'x-dev-subject': 'staging-validation', 'x-dev-tenant-id': scope.tenantId, 'x-dev-scopes': 'events:write memory:read memory:write' };
+const headers = { 'content-type': 'application/json', 'x-dev-subject': 'staging-validation', 'x-dev-tenant-id': scope.tenantId, 'x-dev-bank-id': scope.bankId, 'x-dev-project-id': scope.projectId, 'x-dev-scopes': 'events:write memory:read memory:write' };
 const check = async (name, operation) => { try { await operation(); console.log(`PASS ${name}`); } catch (error) { console.error(`FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`); process.exitCode = 1; } };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -17,8 +18,23 @@ await check('import capture lifecycle', async () => {
   const response = await fetch(`${baseUrl}/api/project-memory/import`, { method: 'POST', headers, body: JSON.stringify({ ...scope, platform: 'codex', conversationId: 'staging-import-lifecycle', exportedAt: new Date().toISOString(), sourceReference: 'staging-validation/import-lifecycle', messages: [{ id: `staging-import-${Date.now()}`, role: 'user', content: 'Requirement: imported Codex messages must expose lifecycle status.' }] }) });
   const body = await response.json(); if (!response.ok || !body.ok) throw new Error(body.error ?? `HTTP ${response.status}`); if (!['queued', 'processed'].includes(body.data?.capture?.state)) throw new Error('import capture lifecycle did not reach queued or processed');
 });
+let codexProof;
+await check('Codex durable integration proof', async () => {
+  codexProof = await runCodexIntegrationProof({
+    baseUrl,
+    scope,
+    conversationId: 'staging-codex-proof',
+    authorization: headers.authorization,
+    headers,
+    endpoints: { capture: '/api/project-memory/codex-event', scopeDenial: '/api/project-memory/events', worker: '/api/project-memory/status', readback: '/api/project-memory/audit' },
+  });
+  if (codexProof.status !== 'completed') throw new Error(`proof state is ${codexProof.status}`);
+  if (!codexProof.redacted || !codexProof.scopeDenied || !codexProof.duplicateSafe) throw new Error('proof did not satisfy redaction, idempotency, and scope checks');
+});
 const pool = new Pool({ connectionString: databaseUrl });
 try {
   await check('worker completion', async () => { for (let attempt = 0; attempt < 20; attempt += 1) { const result = await pool.query("SELECT status FROM jobs WHERE tenant_id = $1 AND bank_id = $2 ORDER BY updated_at DESC LIMIT 1", [scope.tenantId, scope.bankId]); if (result.rows[0]?.status === 'complete') return; if (result.rows[0]?.status === 'dead-letter') throw new Error('latest job is dead-lettered'); await sleep(250); } throw new Error('worker did not complete within five seconds'); });
   await check('canonical provenance', async () => { const result = await pool.query("SELECT evidence FROM project_memory_records WHERE tenant_id = $1 AND bank_id = $2 AND project_id = $3 LIMIT 1", [scope.tenantId, scope.bankId, scope.projectId]); if (!result.rows[0]?.evidence) throw new Error('canonical record or evidence missing'); });
 } finally { await pool.end(); }
+
+if (codexProof) console.log(`CODEX_PROOF ${JSON.stringify({ status: codexProof.status, capturedRoles: codexProof.capturedRoles, redacted: codexProof.redacted, duplicateSafe: codexProof.duplicateSafe, scopeDenied: codexProof.scopeDenied, workerState: codexProof.workerState, readbackRecords: codexProof.readbackRecords })}`);

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { authenticateRequest } from '@/lib/runtime/auth';
+import { authenticateRequest, authorize } from '@/lib/runtime/auth';
 import { parseRuntimeConfig } from '@/lib/runtime/config';
 import { benchmarkRunsMarkdown, sanitizeBenchmarkExportFilename, summarizeBenchmark, validateControlledBenchmark, type ControlledBenchmarkRun } from '@/lib/runtime/benchmark-contract';
 import { createRuntimeRepository, isRuntimeStoreConfigured } from '@/lib/runtime/repository';
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   try {
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
     const envelope = EnvelopeSchema.parse(await request.json());
-    if (principal.tenantId !== envelope.tenantId) return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
+    authorize(principal, 'memory:write', envelope);
     const run = envelope.run as ControlledBenchmarkRun;
     validateControlledBenchmark(run);
     if (run.evidence === 'live-codex' && !isRuntimeStoreConfigured()) return NextResponse.json({ ok: false, error: 'canonical store is not configured for live benchmark persistence' }, { status: 503 });
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, data: { run, summary: summarizeBenchmark(run) } });
   } catch (error) {
     const message = error instanceof z.ZodError ? 'invalid benchmark payload' : error instanceof Error ? error.message : 'benchmark validation failed';
-    const status = message.includes('credential') ? 401 : 400;
+    const status = message.includes('credential') ? 401 : message.includes('scope') || message.includes('permission') ? 403 : 400;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
   try {
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
     const query = z.object({ tenantId: z.string().min(1), bankId: z.string().min(1), projectId: z.string().min(1), limit: z.coerce.number().int().positive().max(100).optional(), format: z.enum(['json', 'markdown']).optional() }).parse(Object.fromEntries(new URL(request.url).searchParams));
-    if (principal.tenantId !== query.tenantId) return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
+    authorize(principal, 'memory:read', query);
     if (!isRuntimeStoreConfigured()) return NextResponse.json({ ok: false, error: 'canonical store is not configured' }, { status: 503 });
     const scope = { tenantId: query.tenantId, bankId: query.bankId };
     const runs = await createRuntimeRepository(scope).listBenchmarkRuns(scope, query.projectId, query.limit ?? 20);
@@ -53,6 +53,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, data: { projectId: query.projectId, runs } });
   } catch (error) {
     const message = error instanceof z.ZodError ? 'invalid benchmark query' : error instanceof Error ? error.message : 'benchmark read failed';
-    return NextResponse.json({ ok: false, error: message }, { status: message.includes('credential') ? 401 : 400 });
+    return NextResponse.json({ ok: false, error: message }, { status: message.includes('credential') ? 401 : message.includes('scope') || message.includes('permission') ? 403 : 400 });
   }
 }

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
     const input = RequestSchema.parse(await request.json());
     const scope = { tenantId: input.tenantId, bankId: input.bankId };
-    authorize(principal, 'memory:write', scope);
+    authorize(principal, 'memory:write', { ...scope, projectId: input.projectId });
     const baseline = input.baseline as unknown as EvaluationRun;
     const replay = input.replay as unknown as EvaluationRun;
     const proposal = input.proposal as unknown as EvaluationCorrectionProposal;

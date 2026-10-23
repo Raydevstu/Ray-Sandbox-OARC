@@ -32,6 +32,7 @@
     "quality:slice4:replay": "npx tsx scripts/slice-four-replay-report.mjs",
     "quality:provider:gemini": "npx tsx scripts/gemini-provider-measurement.mjs",
     "staging:validate": "node scripts/staging-validation.mjs",
+    "release:manifest": "node scripts/release-candidate-manifest.mjs",
     "deployment:validate": "node --experimental-strip-types scripts/deployment-validation.mjs",
     "codex:bridge": "node scripts/codex-host-bridge.mjs",
     "hermes:automation:smoke": "node scripts/hermes-automation-smoke.mjs",

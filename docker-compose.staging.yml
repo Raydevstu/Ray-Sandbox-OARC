@@ -32,7 +32,8 @@ services:
     ports:
       - "3028:3000"
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
+      APEX_RUNTIME_ENV: development
       APEX_DATABASE_URL: postgresql://staging:staging_local_only@postgres:5432/ray_sandbox_staging
       APEX_AUDIT_TENANT_ID: staging-tenant
       APEX_AUDIT_BANK_ID: staging-bank

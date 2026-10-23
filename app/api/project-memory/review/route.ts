@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { authenticateRequest } from '@/lib/runtime/auth';
+import { authenticateRequest, authorize } from '@/lib/runtime/auth';
 import { parseRuntimeConfig } from '@/lib/runtime/config';
 import { createRuntimeRepository, isRuntimeStoreConfigured } from '@/lib/runtime/repository';
 import { reviewProjectMemory } from '@/lib/runtime/memory-review';
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const input = RequestSchema.parse(await request.json());
     if (!isRuntimeStoreConfigured()) return NextResponse.json({ ok: false, error: 'canonical store is not configured' }, { status: 503 });
     const scope = { tenantId: input.tenantId, bankId: input.bankId };
-    if (principal.tenantId !== scope.tenantId) return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
+    authorize(principal, 'memory:write', input);
     const repository = createRuntimeRepository(scope);
     const records = await repository.listProjectMemory(scope, input.projectId);
     const result = reviewProjectMemory(records, { action: input.action, recordId: input.recordId, reviewer: principal.subject, reason: input.reason, at: new Date().toISOString() });
@@ -22,6 +22,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, data: { ...result, event } });
   } catch (error) {
     const message = error instanceof z.ZodError ? 'invalid review request' : error instanceof Error ? error.message : 'review failed';
-    return NextResponse.json({ ok: false, error: message }, { status: message.includes('credential') ? 401 : 400 });
+    return NextResponse.json({ ok: false, error: message }, { status: message.includes('credential') ? 401 : message.includes('scope') || message.includes('permission') ? 403 : 400 });
   }
 }
