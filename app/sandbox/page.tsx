@@ -1,215 +1,33 @@
 "use client";
 
-/* Tier-1 dashboard: fleet KPIs, ops timeline, network mix,
-   latency structure, app health, live event stream. */
-
-import { useMemo } from "react";
-import Link from "next/link";
-import {
-  ArrowUpRight, BrainCircuit, Cpu, Database, Gauge, GitBranch,
-  Layers, Sparkles, Workflow, Zap,
-} from "lucide-react";
-import { Badge, Card, CardHeader, Empty, Progress, Sparkline, Stat } from "@/components/ui";
-import { Donut, HBarChart } from "@/components/charts";
-import { LiveObservabilityChart } from "@/components/oarc-v2/live-observability-chart";
-import type { OarcSeries } from "@/lib/runtime/telemetry";
-import { useSandbox } from "@/lib/store";
-import { fmtMs, fmtNum, timeAgo, NETWORK_META } from "@/lib/utils";
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Activity, Database, GitBranch, Gauge, Layers, Timer, Zap } from 'lucide-react';
+import { Badge, Card, CardHeader, Empty, Progress, Stat } from '@/components/ui';
+import { Donut, HBarChart, LineChart } from '@/components/charts';
+import { LiveObservabilityChart } from '@/components/oarc-v2/live-observability-chart';
+import { ProjectRuntimeTopology } from '@/components/oarc-v2/project-runtime-topology';
+import type { ProjectDashboardSnapshot } from '@/lib/runtime/project-dashboard-service';
+type Session = { subject: string; tenantId: string; permissions: string[]; allowedProjectIds: string[] };
+type Status = 'live' | 'stale' | 'disconnected';
 
 export default function DashboardPage() {
-  const s = useSandbox();
-  const hydrated = useSandbox((st) => st.hydrated);
-
-  const bankFacts = useMemo(() => s.facts.filter((f) => f.bankId === s.activeBankId), [s.facts, s.activeBankId]);
-
-  const netMix = useMemo(() => {
-    const counts = { world: 0, experience: 0, opinion: 0 };
-    for (const f of bankFacts) if (f.network in counts) counts[f.network as keyof typeof counts]++;
-    return [
-      { label: "World", value: counts.world, color: "var(--world)" },
-      { label: "Experience", value: counts.experience, color: "var(--experience)" },
-      { label: "Observation", value: s.observations.filter((o) => o.bankId === s.activeBankId).length, color: "var(--observation)" },
-      { label: "Opinion", value: s.opinions.filter((o) => o.bankId === s.activeBankId).length, color: "var(--opinion)" },
-    ];
-  }, [bankFacts, s.observations, s.opinions, s.activeBankId]);
-
-  const telemetrySeries = useMemo<readonly OarcSeries[]>(() => [
-    { id: "recall", label: "Recall", colorToken: "primary", lineStyle: "solid", enabled: true, points: s.opsSeries.map((point) => ({ timestamp: point.t, value: point.recall })) },
-    { id: "reflect", label: "Reflect", colorToken: "secondary", lineStyle: "dashed", enabled: true, points: s.opsSeries.map((point) => ({ timestamp: point.t, value: point.reflect })) },
-    { id: "retain", label: "Retain", colorToken: "tertiary", lineStyle: "dotted", enabled: true, points: s.opsSeries.map((point) => ({ timestamp: point.t, value: point.retain })) },
-  ], [s.opsSeries]);
-
-  const dashboardChartSeries = useMemo(() => {
-    const now = Date.now();
-    const sampleTimes = (length: number) => Array.from({ length }, (_, index) => now - (length - index - 1) * 60_000);
-    const makeMetricSeries = (id: string, label: string, values: readonly number[], colorToken: OarcSeries["colorToken"], lineStyle: OarcSeries["lineStyle"] = "solid"): OarcSeries => ({
-      id, label, colorToken, lineStyle, enabled: true, points: values.map((value, index) => ({ timestamp: sampleTimes(values.length)[index], value })),
-    });
-    return {
-      latency: s.metrics.flatMap((metric, index) => [
-        makeMetricSeries(`${metric.appId}-p50`, `${metric.label} p50`, metric.series.map((value) => Math.max(1, Math.round(value * (metric.p50 / Math.max(1, metric.series.at(-1) ?? 1))))), index % 2 ? "secondary" : "primary"),
-        makeMetricSeries(`${metric.appId}-p95`, `${metric.label} p95`, metric.series.map((value) => Math.max(1, Math.round(value * (metric.p95 / Math.max(1, metric.series.at(-1) ?? 1))))), "alert", "dashed"),
-      ]),
-      retrievalMix: netMix.map((network, index) => makeMetricSeries(`network-${network.label.toLowerCase()}`, network.label, [network.value], (["primary", "secondary", "tertiary", "alert"] as const)[index] ?? "primary")),
-      health: s.metrics.map((metric, index) => makeMetricSeries(`health-${metric.appId}`, `${metric.label} throughput`, metric.series, index % 2 ? "secondary" : "primary")),
-      queue: [
-        makeMetricSeries("queue-offline", "Offline queue", [s.offlineQueue.length], "alert"),
-        makeMetricSeries("queue-integrations", "Integration events", [s.integrationEvents.length], "secondary", "dashed"),
-        makeMetricSeries("queue-webhooks", "Webhook deliveries", [s.webhookDeliveries.length], "tertiary", "dotted"),
-      ],
-    };
-  }, [netMix, s.integrationEvents.length, s.metrics, s.offlineQueue.length, s.webhookDeliveries.length]);
-
-  const totalTokens = bankFacts.reduce((a, f) => a + f.tokens, 0);
-  const avgConf =
-    s.opinions.filter((o) => o.bankId === s.activeBankId).reduce((a, o) => a + o.confidence, 0) /
-    Math.max(1, s.opinions.filter((o) => o.bankId === s.activeBankId).length);
-
-  const latencyBars = [
-    { label: "Semantic arm", value: 34, color: "var(--world)" },
-    { label: "BM25 arm", value: 21, color: "var(--experience)" },
-    { label: "Graph arm", value: 58, color: "var(--observation)" },
-    { label: "Temporal arm", value: 12, color: "var(--opinion)" },
-    { label: "RRF + rerank", value: 44, color: "var(--accent)" },
-  ];
-
-  if (!hydrated) {
-    return <Empty title="Restoring sandbox state…" hint="Hydrating persisted memory from localStorage." />;
-  }
-
-  return (
-    <div className="space-y-5 max-w-[1400px] mx-auto">
-      {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <Stat label="Memories" value={fmtNum(bankFacts.length)} icon={<Database size={16} />} delta={{ value: 8.2 }} spark={[12, 14, 13, 17, 19, 18, 22, bankFacts.length]} />
-        <Stat label="Observations" value={fmtNum(s.observations.filter((o) => o.bankId === s.activeBankId).length)} icon={<Layers size={16} />} delta={{ value: 3.1 }} color="var(--observation)" spark={[2, 3, 3, 4, 5, 5, 6, 7]} />
-        <Stat label="Opinions" value={fmtNum(s.opinions.filter((o) => o.bankId === s.activeBankId).length)} icon={<BrainCircuit size={16} />} color="var(--opinion)" delta={{ value: -1.4 }} spark={[3, 3, 4, 4, 5, 4, 4, 3]} />
-        <Stat label="Graph links" value={fmtNum(s.links.length)} icon={<GitBranch size={16} />} color="var(--experience)" spark={[20, 24, 28, 31, 36, 40, 44, s.links.length]} />
-        <Stat label="Recall p50" value={fmtMs(s.metrics[0]?.p50 ?? 38)} icon={<Zap size={16} />} delta={{ value: -4.5, suffix: "%" }} spark={[46, 44, 41, 43, 39, 40, 38, 37]} />
-        <Stat label="Tokens stored" value={fmtNum(totalTokens)} icon={<Cpu size={16} />} spark={[800, 950, 1100, 1250, 1400, 1600, 1750, totalTokens]} />
-      </div>
-
-      {/* ops timeline + network mix */}
-      <div className="grid lg:grid-cols-[2fr_1fr] gap-4">
-        <LiveObservabilityChart
-          title="Operations timeline"
-          description="retain / recall / reflect throughput across the last 48 hours"
-          series={telemetrySeries}
-          events={s.events}
-        />
-
-        <Card>
-          <CardHeader title="Four-network mix" subtitle="epistemic distribution of the active bank" icon={<Layers size={15} />} />
-          <Donut slices={netMix} centerLabel="total" centerValue={String(netMix.reduce((a, n) => a + n.value, 0))} />
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted">Mean opinion confidence</span>
-              <span className="font-mono text-ink">{(avgConf || 0).toFixed(2)}</span>
-            </div>
-            <Progress value={(avgConf || 0) * 100} color="var(--opinion)" />
-          </div>
-        </Card>
-      </div>
-
-      <LiveObservabilityChart title="Live retrieval telemetry" description="Bounded local stream from retain, recall, and reflect operations." series={telemetrySeries} events={s.events} />
-
-      <div className="grid lg:grid-cols-2 gap-4">
-        <LiveObservabilityChart title="Latency trend" description="Per-application p50 and p95 latency history from the runtime metrics store." series={dashboardChartSeries.latency} events={s.events} />
-        <LiveObservabilityChart title="Retrieval mix" description="Current active-bank distribution across the four memory networks." series={dashboardChartSeries.retrievalMix} events={s.events} />
-        <LiveObservabilityChart title="Runtime health" description="Bounded throughput samples for the mounted application fleet." series={dashboardChartSeries.health} events={s.events} />
-        <LiveObservabilityChart title="Queue pressure" description="Current offline, integration, and webhook backlog counts." series={dashboardChartSeries.queue} events={s.events} />
-      </div>
-
-      {/* app health + latency structure */}
-      <div className="grid lg:grid-cols-[1fr_1.4fr] gap-4">
-        <Card>
-          <CardHeader title="App health" subtitle="mounted apps · orchestrator fleet" icon={<Workflow size={15} />} right={
-            <Link href="/sandbox/orchestrator" className="text-[11px] text-accent hover:underline flex items-center gap-0.5">
-              Open canvas <ArrowUpRight size={11} />
-            </Link>
-          } />
-          <div className="space-y-2.5">
-            {s.metrics.map((m) => (
-              <Link
-                key={m.appId}
-                href={
-                  m.appId === "memory" ? "/sandbox/memory"
-                  : m.appId === "prompts" ? "/sandbox/prompts"
-                  : m.appId === "context" ? "/sandbox/context"
-                  : m.appId === "learning" ? "/sandbox/learning"
-                  : "/sandbox/orchestrator"
-                }
-                className="flex items-center gap-3 rounded-xl border border-border-soft bg-surface-2 p-3 hover:border-accent-border transition-colors group"
-              >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ background: m.status === "healthy" ? "var(--ok)" : m.status === "degraded" ? "var(--warn)" : "var(--faint)" }}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-medium text-ink truncate group-hover:text-accent transition-colors">{m.label}</p>
-                  <p className="text-[11px] text-faint font-mono">
-                    {fmtNum(m.ops)} ops · p50 {m.p50}ms · err {m.errorRate}%
-                  </p>
-                </div>
-                <Sparkline data={m.series} width={80} height={26} color={m.status === "healthy" ? "var(--observation)" : "var(--warn)"} />
-              </Link>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Recall latency structure"
-            subtitle="simulated per-stage p50 (ms) — construction is background, retrieval is user-facing"
-            icon={<Gauge size={15} />}
-          />
-          <HBarChart items={latencyBars} unit="ms" max={80} />
-          <div className="grid grid-cols-3 gap-2 mt-4">
-            {[
-              { l: "Token budget", v: fmtNum(s.recallSettings.maxTokens) },
-              { l: "Search depth", v: s.recallSettings.budget },
-              { l: "RRF k", v: String(s.recallSettings.rrfK) },
-            ].map((x) => (
-              <div key={x.l} className="rounded-lg border border-border-soft bg-surface-2 p-2.5 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-faint">{x.l}</p>
-                <p className="text-sm font-mono text-accent mt-0.5">{x.v}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* event stream */}
-      <Card>
-        <CardHeader title="Event stream" subtitle="every retain, recall, consolidation and orchestration event" icon={<Sparkles size={15} />} />
-        <div className="space-y-1 max-h-72 overflow-y-auto pr-1" tabIndex={0} role="region" aria-label="Event stream">
-          {s.events.slice(0, 30).map((e) => (
-            <div key={e.id} className="flex items-start gap-3 rounded-lg px-2.5 py-2 hover:bg-surface-2 transition-colors text-[12.5px]">
-              <Badge
-                color={
-                  e.op === "retain" ? "var(--world)"
-                  : e.op === "recall" ? "var(--observation)"
-                  : e.op === "reflect" ? "var(--opinion)"
-                  : e.op === "consolidate" ? "var(--experience)"
-                  : undefined
-                }
-                className="mt-0.5 w-20 justify-center"
-              >
-                {e.op}
-              </Badge>
-              <span className="text-muted flex-1 min-w-0 leading-relaxed">
-                <span className="text-ink font-medium">{e.app}</span> · {e.message}
-              </span>
-              <span className="text-faint font-mono text-[11px] shrink-0 flex items-center gap-2">
-                {e.tokens ? `${e.tokens} tok` : ""}
-                {e.latencyMs ? fmtMs(e.latencyMs) : ""}
-                {timeAgo(e.at)}
-              </span>
-            </div>
-          ))}
-          {!s.events.length && <Empty title="No events yet" hint="Retain something in the Memory app to start the stream." />}
-        </div>
-      </Card>
-    </div>
-  );
+  const [session, setSession] = useState<Session>();
+  const [token, setToken] = useState(''); const [bankId, setBankId] = useState(''); const [projectId, setProjectId] = useState('');
+  const [snapshot, setSnapshot] = useState<ProjectDashboardSnapshot>(); const [status, setStatus] = useState<Status>('disconnected'); const [error, setError] = useState('');
+  useEffect(() => { void fetch('/api/auth/session', { cache: 'no-store' }).then(async (response) => { if (!response.ok) return; const next = await response.json() as Session; setSession(next); setProjectId(next.allowedProjectIds[0] ?? ''); if (next.subject === 'local-owner') setBankId('bank-a'); }); }, []);
+  useEffect(() => { if (!session || !bankId || !projectId) return; setSnapshot(undefined); setStatus('disconnected'); setError(''); const url = `/api/project-dashboard?bankId=${encodeURIComponent(bankId)}&projectId=${encodeURIComponent(projectId)}`; let receivedAt = 0; let active = true; const receive = (value: ProjectDashboardSnapshot) => { if (!active) return; setSnapshot(value); receivedAt = Date.now(); setStatus('live'); setError(''); }; const refresh = async () => { try { const response = await fetch(url, { cache: 'no-store' }); if (!response.ok) throw new Error(`Dashboard request failed (${response.status}).`); receive(await response.json() as ProjectDashboardSnapshot); } catch (cause) { if (active) { setStatus('disconnected'); setError(cause instanceof Error ? cause.message : 'Dashboard request failed.'); } } }; void refresh(); const source = new EventSource(url.replace('/api/project-dashboard?', '/api/project-dashboard/stream?')); const onSnapshot = (event: MessageEvent<string>) => receive(JSON.parse(event.data) as ProjectDashboardSnapshot); source.addEventListener('snapshot', onSnapshot); source.onerror = () => { if (receivedAt) setStatus('stale'); }; const poller = window.setInterval(() => void refresh(), 5_000); const timer = window.setInterval(() => { if (receivedAt && Date.now() - receivedAt > 15_000) setStatus('stale'); }, 1_000); return () => { active = false; source.removeEventListener('snapshot', onSnapshot); source.close(); window.clearInterval(poller); window.clearInterval(timer); }; }, [session, bankId, projectId]);
+  async function connect(event: FormEvent) { event.preventDefault(); setError(''); const response = await fetch('/api/auth/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) }); if (!response.ok) { setError('The signed project token was not accepted.'); return; } const next = await fetch('/api/auth/session', { cache: 'no-store' }).then((value) => value.json() as Promise<Session>); setSession(next); setProjectId(next.allowedProjectIds[0] ?? ''); setToken(''); }
+  async function connectLocalOwner() { setError(''); const response = await fetch('/api/auth/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode: 'local-owner' }) }); if (!response.ok) { setError('Local owner login is disabled.'); return; } const next = await fetch('/api/auth/session', { cache: 'no-store' }).then((value) => value.json() as Promise<Session>); setSession(next); setBankId('bank-a'); setProjectId(next.allowedProjectIds[0] ?? ''); }
+  if (!session) return <main className="max-w-xl mx-auto py-12"><Card><CardHeader title="Connect Dashboard" subtitle="Use a signed, project-scoped access token. It is validated server-side and is never stored in this browser." icon={<Activity size={16} />} /><form onSubmit={connect} className="space-y-3 p-5"><label className="block text-sm text-muted">Signed access token<input value={token} onChange={(event) => setToken(event.target.value)} required type="password" className="mt-1 w-full rounded border p-2 text-ink" autoComplete="off" /></label><button className="rounded bg-accent px-4 py-2 text-white" type="submit">Connect securely</button><button className="rounded border px-4 py-2 text-ink" type="button" onClick={() => void connectLocalOwner()}>Use local owner test account</button>{error && <p role="alert" className="text-danger">{error}</p>}</form></Card></main>;
+  if (!snapshot) return <DashboardShell status={status} bankId={bankId} setBankId={setBankId} projectId={projectId} setProjectId={setProjectId} session={session} error={error}><Empty title="Waiting for authorized project data" hint="Choose a bank and project to open the live stream." /></DashboardShell>;
+  const runtime = snapshot.runtime; const mix = [{ label: 'World', value: snapshot.durable.networkMix.world, color: 'var(--world)' }, { label: 'Experience', value: snapshot.durable.networkMix.experience, color: 'var(--experience)' }, { label: 'Observation', value: snapshot.durable.networkMix.observation, color: 'var(--observation)' }, { label: 'Opinion', value: snapshot.durable.networkMix.opinion, color: 'var(--opinion)' }];
+  const points = runtime.series.slice(-30); const eventPoints = snapshot.events.filter((event) => event.type === 'McpGatewayToolCalled').slice(-30).map((event) => ({ operation: 'mcp', outcome: 'success', timestamp: event.occurredAt })); const timelinePoints = [...points, ...eventPoints].sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp)); const labels = timelinePoints.map((point) => new Date(point.timestamp).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })); const values = (operation: string) => timelinePoints.map((point) => point.operation === operation ? 1 : 0);
+  const telemetry = [{ id: 'duration', label: 'Operation latency', colorToken: 'primary' as const, lineStyle: 'solid' as const, enabled: true, points: points.map((point) => ({ timestamp: Date.parse(point.timestamp), value: point.durationMs })) }];
+  const latencySeries = [{ ...telemetry[0], id: 'latency', label: 'Measured operation p50' }];
+  const retrievalSeries = mix.map((item, index) => ({ id: `network-${item.label.toLowerCase()}`, label: item.label, colorToken: (['primary', 'secondary', 'tertiary', 'alert'] as const)[index], lineStyle: 'solid' as const, enabled: true, points: [{ timestamp: Date.parse(snapshot.generatedAt), value: item.value }] }));
+  const healthSeries = [{ id: 'successes', label: 'Successes', colorToken: 'primary' as const, lineStyle: 'solid' as const, enabled: true, points: timelinePoints.map((point) => ({ timestamp: Date.parse(point.timestamp), value: point.outcome === 'success' ? 1 : 0 })) }, { id: 'failures', label: 'Failures', colorToken: 'alert' as const, lineStyle: 'solid' as const, enabled: true, points: timelinePoints.map((point) => ({ timestamp: Date.parse(point.timestamp), value: point.outcome === 'failure' ? 1 : 0 })) }];
+  const queueSeries = [{ id: 'queued', label: 'Queued', colorToken: 'alert' as const, lineStyle: 'solid' as const, enabled: true, points: [{ timestamp: Date.parse(snapshot.generatedAt), value: runtime.queue.measured ? runtime.queue.queued : 0 }] }, { id: 'active', label: 'Active', colorToken: 'secondary' as const, lineStyle: 'dashed' as const, enabled: true, points: [{ timestamp: Date.parse(snapshot.generatedAt), value: runtime.queue.measured ? runtime.queue.active : 0 }] }, { id: 'dead-lettered', label: 'Dead lettered', colorToken: 'tertiary' as const, lineStyle: 'dotted' as const, enabled: true, points: [{ timestamp: Date.parse(snapshot.generatedAt), value: runtime.queue.measured ? runtime.queue.deadLettered : 0 }] }];
+  const stageBars = Object.entries(runtime.stages).map(([label, value]) => ({ label, value: value?.p50Ms ?? 0, color: 'var(--accent)' }));
+  return <main className="space-y-5 max-w-[1400px] mx-auto"><DashboardShell status={status} bankId={bankId} setBankId={setBankId} projectId={projectId} setProjectId={setProjectId} session={session} error={error}><div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3"><Stat label="Memories" value={String(snapshot.durable.memoryCount)} icon={<Database size={16} />} /><Stat label="Operations" value={String(runtime.successes + runtime.failures)} icon={<Activity size={16} />} /><Stat label="Failures" value={String(runtime.failures)} icon={<Zap size={16} />} /><Stat label="Graph links" value="—" icon={<GitBranch size={16} />} /><Stat label="Recall p50" value={runtime.latency.measured ? `${runtime.latency.p50Ms}ms` : '—'} icon={<Timer size={16} />} /><Stat label="Queued" value={runtime.queue.measured ? String(runtime.queue.queued) : '—'} icon={<Layers size={16} />} /></div><div className="grid lg:grid-cols-[2fr_1fr] gap-4"><Card><CardHeader title="Operations timeline" subtitle="Project-scoped retain, recall, and MCP activity" icon={<Activity size={15} />} right={<Badge color="var(--ok)">● live</Badge>} /><LineChart height={230} labels={labels} series={[{ name: 'recall', color: 'var(--observation)', data: values('recall') }, { name: 'retain', color: 'var(--world)', data: values('retain') }, { name: 'mcp', color: 'var(--accent)', data: values('mcp') }]} /></Card><Card><CardHeader title="Four-network mix" subtitle="Live project distribution" icon={<Layers size={15} />} /><Donut slices={mix} centerLabel="total" centerValue={String(mix.reduce((sum, item) => sum + item.value, 0))} /><Progress value={(snapshot.durable.confidenceMean ?? 0) * 100} color="var(--opinion)" /></Card></div><LiveObservabilityChart title="Live retrieval telemetry" description="Server-recorded operation latency for this project." series={telemetry} /><div className="grid lg:grid-cols-2 gap-4"><LiveObservabilityChart title="Latency trend" description="Measured project operation latency." series={latencySeries} /><LiveObservabilityChart title="Retrieval mix" description="Current authorized project distribution across memory networks." series={retrievalSeries} /><LiveObservabilityChart title="Runtime health" description="Measured successful and failed project operations." series={healthSeries} /><LiveObservabilityChart title="Queue pressure" description="Measured project queue state." series={queueSeries} /></div><div className="grid lg:grid-cols-2 gap-4"><Card><CardHeader title="Latency structure" subtitle="Measured runtime stages" icon={<Timer size={15} />} /><HBarChart items={stageBars.length ? stageBars : [{ label: 'No stage samples yet', value: 0, color: 'var(--faint)' }]} unit="ms" max={Math.max(1, ...stageBars.map((item) => item.value))} /></Card><ProjectRuntimeTopology status={status} values={snapshot.durable.networkMix} /></div><Card><CardHeader title="Event stream" subtitle="Scoped canonical project events" icon={<Activity size={15} />} />{snapshot.events.length ? <div className="space-y-2 p-4">{snapshot.events.map((event) => <div key={event.id} className="rounded-lg border border-border-soft bg-surface-2 p-3 text-sm"><strong>{event.type}</strong><span className="text-faint"> · {new Date(event.occurredAt).toLocaleString()}</span></div>)}</div> : <Empty title="No events yet" hint="This project has no durable events yet." />}</Card></DashboardShell></main>;
 }
+function DashboardShell({ status, bankId, setBankId, projectId, setProjectId, session, error, children }: { status: Status; bankId: string; setBankId: (value: string) => void; projectId: string; setProjectId: (value: string) => void; session: Session; error: string; children: React.ReactNode }) { return <><section className={`runtime-telemetry runtime-telemetry-${status}`}><div><p className="text-xs text-muted">Authorized project dashboard</p><h1>Project runtime telemetry</h1></div><span role="status">{status === 'live' ? 'Live' : status === 'stale' ? 'Stale' : 'Disconnected'}</span><label>Bank ID<input value={bankId} onChange={(event) => setBankId(event.target.value)} placeholder="bank-a" className="ml-2 rounded border p-1" /></label><label>Project<select value={projectId} onChange={(event) => setProjectId(event.target.value)} className="ml-2 rounded border p-1">{session.allowedProjectIds.map((id) => <option key={id}>{id}</option>)}</select></label></section>{error && <p role="alert" className="text-danger">{error}</p>}{children}</>; }

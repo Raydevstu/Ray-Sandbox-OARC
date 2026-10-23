@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
     const input = RequestSchema.parse(await request.json());
     const scope = { tenantId: input.tenantId, bankId: input.bankId };
-    authorize(principal, 'memory:read', { ...scope, projectId: input.projectId });
+    authorize(principal, 'memory:read', scope);
     if (!isRuntimeStoreConfigured()) return NextResponse.json({ ok: false, requestId, error: 'canonical store is not configured', retryable: true, state: 'unavailable' }, { status: 503 });
     const retrieval = await recallMemory({ ...scope, projectId: input.projectId, query: input.query }, createRuntimeRepository(scope));
     const trace = { traceId: retrieval.traceId, query: input.query, items: retrieval.facts.map((fact, index) => ({ recordId: fact.id, score: Math.max(0, 1 - index / Math.max(1, retrieval.facts.length)), confidence: fact.confidence, evidenceReferences: fact.evidenceIds, rationale: 'selected by scoped lexical retrieval', createdAt: fact.createdAt, updatedAt: fact.createdAt, status: 'active', source: { platform: 'developer-api', timestamp: fact.createdAt } })), gaps: [] };

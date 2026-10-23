@@ -7,8 +7,6 @@ import { GET as getEvents } from '@/app/api/project-memory/events/route';
 import { GET as getExport } from '@/app/api/project-memory/export/route';
 import { loadAuthenticatedOperatorSectionData, loadOperatorSectionData, type OperatorSection, type OperatorScope } from '@/lib/runtime/operator-section-data';
 import type { OperationalState } from '@/lib/runtime/operational-state';
-import { parseRuntimeConfig } from '@/lib/runtime/config';
-import { readLocalOperatorSession } from '@/lib/runtime/local-operator';
 
 const sections = {
   conflicts: { title: 'Conflicts', description: 'Reviewable uncertainty and correction decisions.', icon: CircleAlert },
@@ -24,19 +22,19 @@ const routeHandlers: Record<OperatorSection, (request: Request) => Promise<Respo
   exports: getExport,
 };
 
-export default async function OperatorSectionPage({ params }: { params: Promise<{ section: string }> }) {
+export default async function OperatorSectionPage({ params, searchParams }: { params: Promise<{ section: string }>; searchParams: Promise<Partial<OperatorScope>> }) {
   const { section } = await params;
+  const query = await searchParams;
   const item = sections[section as keyof typeof sections];
   if (!item) return <div className="mx-auto max-w-3xl rounded-xl border border-border-soft bg-surface p-6"><h1 className="text-lg font-semibold text-ink">Operator section unavailable</h1><p className="mt-2 text-sm text-muted">This workspace section does not exist.</p></div>;
   const Icon = item.icon;
+  const scope = query.tenantId && query.bankId && query.projectId ? { tenantId: query.tenantId, bankId: query.bankId, projectId: query.projectId } : undefined;
   const incoming = await headers();
   const forwarded = new Headers();
-  for (const name of ['authorization', 'cookie', 'x-dev-subject', 'x-dev-tenant-id', 'x-dev-bank-id', 'x-dev-project-id', 'x-dev-scopes']) {
+  for (const name of ['authorization', 'x-dev-subject', 'x-dev-tenant-id', 'x-dev-scopes']) {
     const value = incoming.get(name);
     if (value) forwarded.set(name, value);
   }
-  const session = readLocalOperatorSession(parseRuntimeConfig(process.env), new Request('http://operator.local', { headers: forwarded }));
-  const scope: OperatorScope | undefined = session ? { tenantId: session.tenantId, bankId: session.bankId!, projectId: session.projectId! } : undefined;
   let data: { endpoint: string; state: OperationalState; summary: string; count?: number } = loadOperatorSectionData(section as OperatorSection);
   if (scope) {
     const selectedSection = section as OperatorSection;

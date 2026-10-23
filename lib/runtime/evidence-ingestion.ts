@@ -27,7 +27,6 @@ export const persistEvidenceEvent = async (repository: CanonicalRepository, even
   const existing = await repository.listProjectEvents(event, event.projectId);
   const prior = existing.find((candidate) => candidate.id === event.id);
   if (prior) return { event: prior, duplicate: true, queued: false };
-  const persisted = { ...event, sequence: existing.reduce((max, candidate) => Math.max(max, candidate.sequence), 0) + 1 };
-  await repository.appendProjectEvent(persisted);
+  const persisted = await repository.appendProjectEventNextSequence(event);
   return { event: persisted, duplicate: false, queued: dispatchProjectMemory(dispatcher, persisted) };
 };

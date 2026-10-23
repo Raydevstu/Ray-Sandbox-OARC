@@ -30,6 +30,16 @@ describe('scoped repository ports', () => {
     expect(calls.some((call) => call.includes('COMMIT'))).toBe(true);
     await expect(repository.findFacts({ tenantId: 't2', bankId: 'b1' })).rejects.toThrow('scope');
   });
+  it('uses a bounded scoped candidate query for lexical recall', async () => {
+    let query = '';
+    const repository = new PostgresRepository(async (sql) => { query = sql; return []; }, { tenantId: 't1', bankId: 'b1' });
+    await repository.searchFacts({ tenantId: 't1', bankId: 'b1', projectId: 'p1' }, ['postgresql', 'canonical'], 20);
+    expect(query).toContain('ILIKE ANY');
+    expect(query).toContain('WITH candidates AS');
+    expect(query).toContain('JOIN fact_evidence');
+    expect(query).not.toContain('ESCAPE');
+    expect(query).toContain('LIMIT $5');
+  });
   it('persists project events and records through scoped PostgreSQL statements', async () => {
     const calls: Array<{ query: string; params: readonly unknown[] }> = [];
     const repository = new PostgresRepository(async (query, params) => { calls.push({ query, params }); return []; }, { tenantId: 't1', bankId: 'b1' });

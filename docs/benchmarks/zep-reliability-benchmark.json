@@ -1,0 +1,43 @@
+{
+  "benchmark": "zep-reliability-v1",
+  "provider": "zep-v4",
+  "generatedAt": "2026-10-22T21:58:21.992Z",
+  "probes": {
+    "duplicate": {
+      "status": "observed",
+      "acceptedWrites": 2,
+      "contextChars": 455
+    },
+    "retry": {
+      "status": "passed",
+      "attempts": 2
+    },
+    "timeout": {
+      "status": "passed",
+      "timeoutMs": 25
+    },
+    "concurrency": {
+      "status": "passed",
+      "requested": 5,
+      "completed": 5
+    },
+    "recovery": {
+      "status": "passed",
+      "deletedUsers": 6,
+      "verifiedDeletedUsers": 6
+    }
+  },
+  "metrics": {
+    "failures": 0,
+    "concurrencyRequested": 5,
+    "concurrencyCompleted": 5,
+    "cleanupVerified": true
+  },
+  "evidence": {
+    "IMPLEMENTED": true,
+    "TESTED": true,
+    "BENCHMARK_VERIFIED": true,
+    "LIVE_CONNECTOR_VERIFIED": true,
+    "PRODUCTION_VERIFIED": false
+  }
+}

@@ -1,8 +1,8 @@
 # Hindsight Sandbox
 
-**An open-source (MIT) Next.js App Router sandbox for mounting, wiring and orchestrating agent-memory apps** — a fully client-side study environment whose UI and architecture are inspired by [hindsight.vectorize.io](https://hindsight.vectorize.io/) and the Hindsight technical report.
+**An open-source (MIT) Next.js App Router sandbox and local agent-memory control plane** — it contains browser simulation features plus an optional PostgreSQL-backed runtime, authenticated APIs, MCP/Hermes integration, workers, and operator evidence surfaces. The UI and architecture are inspired by [hindsight.vectorize.io](https://hindsight.vectorize.io/) and the Hindsight technical report.
 
-Everything runs in the browser. No backend, no API keys, no LLM calls, no tracking. The memory engine is a deterministic TypeScript simulation of the published architecture, so you can watch every stage of the pipeline — fact extraction, graph links, four-arm retrieval, rank fusion, reranking, token packing, consolidation, opinion reinforcement — with full traces.
+The browser sandbox can run without a backend, API keys, or LLM calls. The local runtime is a separate evidence path: configure `APEX_DATABASE_URL` for canonical PostgreSQL storage, use authenticated REST/MCP routes for retain/recall, and run the bounded worker for durable projection. Hermes and other connectors are not production-verified merely because a route returns HTTP 200.
 
 ```
 npm install

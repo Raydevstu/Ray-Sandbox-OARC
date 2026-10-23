@@ -17,6 +17,7 @@ export interface CanonicalRepository {
   appendEvidence(record: EvidenceRecord): Promise<void>;
   appendRevision(record: MemoryFactRevision): Promise<void>;
   findFacts(scope: MemoryScope & Readonly<{ projectId?: string }>): Promise<readonly MemoryFactRevision[]>;
+  searchFacts(scope: MemoryScope & Readonly<{ projectId?: string }>, queryTerms: readonly string[], limit: number): Promise<readonly MemoryFactRevision[]>;
   tombstoneFact(scope: MemoryScope, factId: string, deletedAt: string): Promise<void>;
   listEntities(scope: MemoryScope, limit: number): Promise<readonly EntitySummary[]>;
   appendEvent(record: EventRecord): Promise<void>;

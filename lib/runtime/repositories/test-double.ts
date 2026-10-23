@@ -30,6 +30,7 @@ export class TestRepository implements CanonicalRepository {
   async appendEvidence(record: EvidenceRecord) { this.check(record); this.evidence.push({ ...record }); }
   async appendRevision(record: MemoryFactRevision) { this.check(record); this.facts.push({ ...record, evidenceIds: [...record.evidenceIds] }); }
   async findFacts(scope: MemoryScope & Readonly<{ projectId?: string }>) { this.check(scope); return this.facts.filter((fact) => fact.tenantId === scope.tenantId && fact.bankId === scope.bankId && (!scope.projectId || fact.projectId === scope.projectId) && !this.deleted.has(fact.id)).map((fact) => ({ ...fact, evidenceIds: [...fact.evidenceIds] })); }
+  async searchFacts(scope: MemoryScope & Readonly<{ projectId?: string }>, queryTerms: readonly string[], limit: number) { const facts = await this.findFacts(scope); return facts.filter((fact) => queryTerms.some((term) => fact.claim.toLowerCase().includes(term.toLowerCase()))).slice(0, Math.max(1, limit)); }
   async tombstoneFact(scope: MemoryScope, factId: string, _deletedAt: string) { this.check(scope); this.deleted.add(factId); }
   async listEntities(scope: MemoryScope, _limit: number): Promise<readonly EntitySummary[]> { this.check(scope); return []; }
   async appendEvent(record: EventRecord) { this.check(record); this.events.push({ ...record, payload: { ...record.payload } }); this.idempotency.set(record.id, { ...record, payload: { ...record.payload } }); }

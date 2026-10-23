@@ -186,3 +186,7 @@ All locally implementable Slice 1–5 requirements are complete. Direct PostgreS
 Final evidence: Vitest `74` files / `247` tests passed with `6` skipped; typecheck passed; serial authenticated Chromium/mobile Playwright passed `24/24`; staging validation passed all five checks; PostgreSQL audit scanned 124 records and 1,076 events at 100% provenance and mutation-ledger coverage; diff check passed with existing CRLF warnings only.
 
 Remaining only external/governed holds: renewed Gemini spend authorization plus a valid redacted sample for human-reviewed quality measurement, and separately authorized connector/live/production evidence. No connector authorization was performed.
+
+## 2026-10-23 Codex capture connector verification
+
+`LIVE CONNECTOR VERIFIED` for the local Codex desktop/CLI host: a controlled Codex session persisted its exact user prompt and assistant acknowledgement into local PostgreSQL. Readback confirmed the shared project scope, two conversation roles, and `codex-hook` source provenance. The capture adapter now normalizes Windows path separators before deriving project/workspace identities and only reports success when the import service accepts every submitted message. Focused capture tests (`6/6`) and `npm run typecheck` passed; local `/sandbox` returned HTTP `200` with PostgreSQL healthy. This is not production verification, and it does not establish non-Codex connector behavior.

@@ -2,7 +2,7 @@ import { createPublicKey, verify } from 'node:crypto';
 import type { RuntimeConfig } from '../config';
 import type { Permission, Principal } from './principal';
 
-type JwtClaims = { sub?: string; tenant_id?: string; tenantId?: string; scope?: string; scopes?: string[]; iss?: string; aud?: string | string[]; exp?: number };
+type JwtClaims = { sub?: string; tenant_id?: string; tenantId?: string; scope?: string; scopes?: string[]; allowed_project_ids?: unknown; iss?: string; aud?: string | string[]; exp?: number };
 type Jwk = { kid?: string; kty: string; n?: string; e?: string; alg?: string };
 type Jwks = { keys: Jwk[] };
 
@@ -28,5 +28,8 @@ export const authenticateJwt = async (token: string, config: RuntimeConfig): Pro
   const tenantId = claims.tenant_id ?? claims.tenantId;
   if (!claims.sub || !tenantId) throw new Error('JWT is missing subject or tenant');
   const scopes = claims.scopes ?? claims.scope?.split(/\s+/) ?? [];
-  return { subject: claims.sub, tenantId, scopes: new Set(scopes as Permission[]), source: 'jwt' };
+  if (!Array.isArray(claims.allowed_project_ids) || claims.allowed_project_ids.length === 0 || claims.allowed_project_ids.some((projectId) => typeof projectId !== 'string' || !projectId.trim())) {
+    throw new Error('JWT allowed_project_ids must be a non-empty list of project IDs');
+  }
+  return { subject: claims.sub, tenantId, scopes: new Set(scopes as Permission[]), allowedProjectIds: claims.allowed_project_ids.map((projectId) => projectId.trim()), source: 'jwt' };
 };

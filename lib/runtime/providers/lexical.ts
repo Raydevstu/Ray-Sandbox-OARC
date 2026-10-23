@@ -8,7 +8,7 @@ export class LexicalProvider {
   constructor(private readonly repository: CanonicalRepository) {}
   async search(request: LexicalSearchRequest): Promise<readonly RankedCandidate[]> {
     const queryTerms = terms(request.query);
-    const facts = await this.repository.findFacts(request);
+    const facts = await this.repository.searchFacts(request, queryTerms, request.limit);
     return facts.map((fact) => { const matchedTerms = queryTerms.filter((term) => fact.claim.toLowerCase().includes(term)); return { fact, matchedTerms, score: matchedTerms.length / Math.max(1, queryTerms.length) }; }).filter((candidate) => candidate.score > 0).sort((a, b) => b.score - a.score || b.fact.revision - a.fact.revision).slice(0, request.limit);
   }
 }

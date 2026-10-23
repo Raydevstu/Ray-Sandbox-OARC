@@ -1,0 +1,17 @@
+{
+  "mcp": {
+    "ray-memory": {
+      "type": "remote",
+      "url": "http://127.0.0.1:3028/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${RAY_MEMORY_TOKEN}"
+      }
+    }
+  },
+  "permission": {
+    "ray-memory_memory_recall": "allow",
+    "ray-memory_memory_trace": "allow",
+    "ray-memory_memory_get_project_state": "allow",
+    "ray-memory_memory_get_capture_status": "allow"
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "benchmark": "neutral-agent-memory-v1",
+  "provider": "zep-v4",
+  "corpusVersion": "tier15-phase-1-3-5-v1",
+  "seed": "neutral-v1",
+  "generatedAt": "2026-10-23T00:00:00.000Z",
+  "cases": [
+    {
+      "caseId": "tier15-neutral-v1-000",
+      "phase": "phase-1-isolation",
+      "control": "positive",
+      "expectedResult": "accepted",
+      "contextHit": true,
+      "contextChars": 434,
+      "latencyMs": 2315.43,
+      "evidence": "LIVE CONNECTOR VERIFIED"
+    },
+    {
+      "caseId": "tier15-neutral-v1-001",
+      "phase": "phase-1-isolation",
+      "control": "positive",
+      "expectedResult": "accepted",
+      "contextHit": true,
+      "contextChars": 1057,
+      "latencyMs": 2159.38,
+      "evidence": "LIVE CONNECTOR VERIFIED"
+    },
+    {
+      "caseId": "tier15-neutral-v1-002",
+      "phase": "phase-1-isolation",
+      "control": "positive",
+      "expectedResult": "accepted",
+      "contextHit": true,
+      "contextChars": 777,
+      "latencyMs": 2694.01,
+      "evidence": "LIVE CONNECTOR VERIFIED"
+    },
+    {
+      "caseId": "tier15-neutral-v1-003",
+      "phase": "phase-1-isolation",
+      "control": "negative",
+      "expectedResult": "rejected",
+      "contextHit": true,
+      "contextChars": 1216,
+      "latencyMs": 2181.98,
+      "evidence": "LIVE CONNECTOR VERIFIED"
+    },
+    {
+      "caseId": "tier15-neutral-v1-004",
+      "phase": "phase-3-temporal",
+      "control": "positive",
+      "expectedResult": "accepted",
+      "contextHit": true,
+      "contextChars": 1382,
+      "latencyMs": 2193.63,
+      "evidence": "LIVE CONNECTOR VERIFIED"
+    },
+    {
+      "caseId": "tier15-neutral-v1-005",
+      "phase": "phase-3-temporal",
+      "control": "positive",
+      "expectedResult": "accepted",
+      "contextHit": true,
+      "contextChars": 1216,
+      "latencyMs": 2187.13,
+      "evidence": "LIVE CONNECTOR VERIFIED"
+    },
+    {
+      "caseId": "tier15-neutral-v1-006",
+      "phase": "phase-3-temporal",
+      "control": "negative",
+      "expectedResult": "rejected",
+      "contextHit": true,
+      "contextChars": 1080,
+      "latencyMs": 2205.89,
+      "evidence": "LIVE CONNECTOR VERIFIED"
+    },
+    {
+      "caseId": "tier15-neutral-v1-007",
+      "phase": "phase-5-adversarial",
+      "control": "positive",
+      "expectedResult": "accepted",
+      "contextHit": true,
+      "contextChars": 440,
+      "latencyMs": 2191.04,
+      "evidence": "LIVE CONNECTOR VERIFIED"
+    },
+    {
+      "caseId": "tier15-neutral-v1-008",
+      "phase": "phase-5-adversarial",
+      "control": "negative",
+      "expectedResult": "rejected",
+      "contextHit": true,
+      "contextChars": 430,
+      "latencyMs": 2176.61,
+      "evidence": "LIVE CONNECTOR VERIFIED"
+    }
+  ],
+  "metrics": {
+    "cases": 9,
+    "contextHitRate": 1,
+    "p50LatencyMs": 2191.04,
+    "p95LatencyMs": 2694.01,
+    "failures": 0
+  },
+  "evidence": {
+    "IMPLEMENTED": true,
+    "TESTED": true,
+    "BENCHMARK_VERIFIED": true,
+    "LIVE_CONNECTOR_VERIFIED": true,
+    "PRODUCTION_VERIFIED": false,
+    "cleanupAttempted": true
+  }
+}

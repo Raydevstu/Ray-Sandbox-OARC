@@ -31,13 +31,12 @@ export class ProjectMemoryPipeline {
     // extraction input would recursively manufacture duplicate memories.
     const sourceEvents = events.filter((candidate) => !candidate.type.startsWith('ProjectMemory'));
     const governed = governCandidates(existing, extractProjectMemoryCandidates(sourceEvents));
-    let sequence = nextSequence(events);
     for (const action of governed.actions) {
       const record = governed.records.find((candidate) => candidate.id === action.recordId);
       if (!record) continue;
       await this.repository.upsertProjectMemory(record);
-      if (action.kind === 'created') await this.repository.appendProjectEvent(memoryEvent(record, sequence++, 'recorded'));
-      else if (action.kind === 'superseded' || action.kind === 'conflict' || action.kind === 'invalidated') await this.repository.appendProjectEvent(memoryEvent(record, sequence++, 'status'));
+      if (action.kind === 'created') await this.repository.appendProjectEventNextSequence(memoryEvent(record, 0, 'recorded'));
+      else if (action.kind === 'superseded' || action.kind === 'conflict' || action.kind === 'invalidated') await this.repository.appendProjectEventNextSequence(memoryEvent(record, 0, 'status'));
     }
   }
 }
@@ -62,6 +61,16 @@ class PersistentProjectMemoryWorker {
       try {
         await this.process(job.event);
         await this.repository.completeProjectJob(this.scope, job.id, this.options.consumer);
+        await this.repository.appendProjectEventNextSequence({
+          tenantId: this.scope.tenantId,
+          bankId: this.scope.bankId,
+          projectId: job.event.projectId,
+          id: stableId('project-worker-lifecycle', job.event.id, this.options.consumer, 'completed'),
+          type: 'ProjectWorkerCompleted',
+          payload: { sourceEventId: job.event.id, consumer: this.options.consumer, latencyMs: Date.now() - started },
+          occurredAt: (this.options.now ?? (() => new Date().toISOString()))(),
+          sequence: 0,
+        });
         const checkpoint = advanceCheckpoint(await this.repository.getProjectCheckpoint(this.scope, this.options.consumer), { ...this.scope, consumer: this.options.consumer, eventId: job.event.id, updatedAt: (this.options.now ?? (() => new Date().toISOString()))() });
         await this.repository.saveProjectCheckpoint(checkpoint);
         this.accepted.delete(job.id); this.telemetry = { ...this.telemetry, processed: this.telemetry.processed + 1, lastLatencyMs: Date.now() - started };
@@ -70,6 +79,16 @@ class PersistentProjectMemoryWorker {
       } catch (error) {
         const retryAt = new Date(Date.now() + Math.min(30_000, 250 * (2 ** Math.max(0, job.attempts - 1)))).toISOString();
         const status = await this.repository.failProjectJob(this.scope, job.id, this.options.consumer, error instanceof Error ? error.message : String(error), this.options.maxAttempts, retryAt);
+        await this.repository.appendProjectEventNextSequence({
+          tenantId: this.scope.tenantId,
+          bankId: this.scope.bankId,
+          projectId: job.event.projectId,
+          id: stableId('project-worker-lifecycle', job.event.id, this.options.consumer, status === 'dead-letter' ? 'dead-letter' : 'failed'),
+          type: status === 'dead-letter' ? 'ProjectWorkerDeadLettered' : 'ProjectWorkerFailed',
+          payload: { sourceEventId: job.event.id, consumer: this.options.consumer, error: error instanceof Error ? error.message : String(error) },
+          occurredAt: (this.options.now ?? (() => new Date().toISOString()))(),
+          sequence: 0,
+        });
         if (status === 'dead-letter') this.accepted.delete(job.id);
         this.telemetry = { ...this.telemetry, failed: this.telemetry.failed + 1, retried: this.telemetry.retried + (status === 'pending' ? 1 : 0), deadLettered: this.telemetry.deadLettered + (status === 'dead-letter' ? 1 : 0) };
         return status === 'dead-letter' ? job : undefined;

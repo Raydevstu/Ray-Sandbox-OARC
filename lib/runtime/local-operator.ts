@@ -29,7 +29,7 @@ export const createLocalOperatorSession = (config: RuntimeConfig, scopeId: strin
   const scope = seededScopes.find((candidate) => candidate.id === scopeId);
   if (!scope) throw new Error('unknown local operator scope');
   const token = randomUUID();
-  sessions.set(token, { subject: 'local-operator', tenantId: scope.tenantId, bankId: scope.bankId, projectId: scope.projectId, scopes: sessionPermissions, source: 'dev', scopeId: scope.id, label: scope.label, expiresAt: Date.now() + sessionLifetimeMs });
+  sessions.set(token, { subject: 'local-operator', tenantId: scope.tenantId, bankId: scope.bankId, projectId: scope.projectId, scopes: sessionPermissions, allowedProjectIds: [scope.projectId], source: 'dev', scopeId: scope.id, label: scope.label, expiresAt: Date.now() + sessionLifetimeMs });
   return { token, cookie: `${LOCAL_OPERATOR_COOKIE}=${token}`, scope };
 };
 

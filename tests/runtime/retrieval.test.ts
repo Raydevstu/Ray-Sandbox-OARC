@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { recallMemory } from '../../lib/runtime/retrieval';
 import { TestRepository } from '../../lib/runtime/repositories/test-double';
+import { LexicalProvider } from '../../lib/runtime/providers/lexical';
 
 describe('runtime lexical retrieval', () => {
+  it('uses the repository candidate search when available before ranking candidates', async () => {
+    const repository = new TestRepository('t1');
+    let candidateSearches = 0;
+    repository.searchFacts = async (request) => { candidateSearches += 1; return repository.findFacts(request); };
+    await new LexicalProvider(repository).search({ tenantId: 't1', bankId: 'b1', query: 'prefers', limit: 5 });
+    expect(candidateSearches).toBe(1);
+  });
   it('retrieves only scoped facts and respects policy and token budget', async () => {
     const repository = new TestRepository('t1');
     await repository.appendRevision({ tenantId: 't1', bankId: 'b1', id: 'f1', revision: 1, claim: 'User prefers tea', confidence: 0.8, evidenceIds: ['e1'], createdAt: '2026-10-06T00:00:00.000Z' });

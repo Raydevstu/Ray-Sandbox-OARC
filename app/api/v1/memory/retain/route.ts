@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateRequest, authorize } from '../../../../../lib/runtime/auth';
-import { createRetainHandler, readProjectScope, readScope } from '../../../../../lib/runtime/api-handlers';
+import { createRetainHandler, readScope } from '../../../../../lib/runtime/api-handlers';
 import { parseRuntimeConfig } from '../../../../../lib/runtime/config';
 import { createRuntimeRepository, isRuntimeStoreConfigured } from '../../../../../lib/runtime/repository';
 
@@ -8,9 +8,8 @@ export async function POST(request: Request) {
   const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
   try {
     const scope = await readScope(request);
-    const projectScope = await readProjectScope(request);
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
-    authorize(principal, 'memory:write', projectScope);
+    authorize(principal, 'memory:write', scope);
     if (!isRuntimeStoreConfigured()) return NextResponse.json({ ok: false, requestId, error: 'canonical store is not configured', retryable: true, state: 'unavailable' }, { status: 503 });
     return await createRetainHandler(createRuntimeRepository(scope))(request);
   } catch (error) {

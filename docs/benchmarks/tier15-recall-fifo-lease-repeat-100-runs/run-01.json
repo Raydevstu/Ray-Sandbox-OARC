@@ -1,0 +1,137 @@
+{
+  "baseUrl": "http://127.0.0.1:3028",
+  "started": "2026-10-22T20:35:36.912Z",
+  "concurrency": 100,
+  "recallLimit": 10,
+  "projection": "full",
+  "scope": {
+    "tenantId": "staging-tenant",
+    "bankId": "staging-bank",
+    "projectId": "tier15-profile-100-20261023"
+  },
+  "query": "canonical PostgreSQL persistence store",
+  "directDatabase": {
+    "p50Ms": 59.65,
+    "p95Ms": 90.26,
+    "p99Ms": 93.56,
+    "maxMs": 93.63,
+    "totalMs": 649.74
+  },
+  "request": {
+    "failures": 0,
+    "p50Ms": 391.43,
+    "p95Ms": 469.56,
+    "p99Ms": 475.1,
+    "maxMs": 476.36,
+    "factsP95": 10,
+    "evidenceP95": 10,
+    "resultBytesP95": 9398,
+    "stageTimings": {
+      "auth": {
+        "p50Ms": 0.03,
+        "p95Ms": 0.06,
+        "p99Ms": 0.1,
+        "maxMs": 0.24
+      },
+      "scope": {
+        "p50Ms": 0.31,
+        "p95Ms": 0.72,
+        "p99Ms": 0.86,
+        "maxMs": 0.94
+      },
+      "authorize": {
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "p99Ms": 0.01,
+        "maxMs": 0.01
+      },
+      "queue": {
+        "p50Ms": 0.02,
+        "p95Ms": 80.02,
+        "p99Ms": 87.35,
+        "maxMs": 87.74
+      },
+      "repository": {
+        "p50Ms": 0.01,
+        "p95Ms": 0.03,
+        "p99Ms": 0.04,
+        "maxMs": 0.04
+      },
+      "connection": {
+        "p50Ms": 95.05,
+        "p95Ms": 195.99,
+        "p99Ms": 199.6,
+        "maxMs": 202.54
+      },
+      "query": {
+        "p50Ms": 9.12,
+        "p95Ms": 117.86,
+        "p99Ms": 145.38,
+        "maxMs": 145.69
+      },
+      "response": {
+        "p50Ms": 0.41,
+        "p95Ms": 0.76,
+        "p99Ms": 1.23,
+        "maxMs": 1.62
+      }
+    },
+    "leaseFairness": {
+      "samples": 100,
+      "sequenceInversions": 20,
+      "maxSequence": 700,
+      "waitMs": {
+        "p50Ms": 94.78,
+        "p95Ms": 195.88,
+        "p99Ms": 199.41,
+        "maxMs": 202.25
+      }
+    }
+  },
+  "serverTimingSamples": [
+    "auth;dur=0.05, scope;dur=0.94, authorize;dur=0.01, queue;dur=0.03, repository;dur=0.01, connection;dur=0.3, query;dur=22.62, response;dur=0.52, poolWaiting=3, poolTotal=5, leaseSequence=601, leaseWait=0.08",
+    "auth;dur=0.04, scope;dur=0.46, authorize;dur=0, queue;dur=0.02, repository;dur=0.01, connection;dur=0.19, query;dur=37.43, response;dur=0.5, poolWaiting=7, poolTotal=5, leaseSequence=602, leaseWait=0.05",
+    "auth;dur=0.06, scope;dur=0.44, authorize;dur=0, queue;dur=0.02, repository;dur=0.01, connection;dur=0.28, query;dur=77.63, response;dur=0.76, poolWaiting=21, poolTotal=5, leaseSequence=603, leaseWait=0.09",
+    "auth;dur=0.03, scope;dur=0.38, authorize;dur=0, queue;dur=0.01, repository;dur=0, connection;dur=0.14, query;dur=90.13, response;dur=1.23, poolWaiting=23, poolTotal=5, leaseSequence=604, leaseWait=0.04",
+    "auth;dur=0.05, scope;dur=0.58, authorize;dur=0.01, queue;dur=0.02, repository;dur=0.01, connection;dur=6.71, query;dur=82.91, response;dur=0.46, poolWaiting=23, poolTotal=5, leaseSequence=606, leaseWait=6.52"
+  ],
+  "plan": [
+    "GroupAggregate  (cost=29.41..58.51 rows=10 width=258) (actual time=0.661..0.675 rows=10 loops=1)",
+    "  Group Key: f.revision, f.id, f.tenant_id, f.bank_id, f.project_id, f.claim, f.confidence, f.created_at",
+    "  Buffers: shared hit=48",
+    "  ->  Incremental Sort  (cost=29.41..58.16 rows=10 width=291) (actual time=0.644..0.646 rows=10 loops=1)",
+    "        Sort Key: f.revision DESC, f.id, f.tenant_id, f.bank_id, f.project_id, f.claim, f.confidence, f.created_at",
+    "        Presorted Key: f.revision",
+    "        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 28kB  Peak Memory: 28kB",
+    "        Buffers: shared hit=48",
+    "        ->  Nested Loop Left Join  (cost=0.84..57.88 rows=10 width=291) (actual time=0.214..0.472 rows=10 loops=1)",
+    "              Buffers: shared hit=36",
+    "              ->  Limit  (cost=0.43..13.48 rows=10 width=226) (actual time=0.117..0.151 rows=10 loops=1)",
+    "                    Buffers: shared hit=5",
+    "                    ->  Nested Loop Anti Join  (cost=0.43..130.89 rows=100 width=226) (actual time=0.116..0.147 rows=10 loops=1)",
+    "                          Join Filter: (d.fact_id = f.id)",
+    "                          Buffers: shared hit=5",
+    "                          ->  Index Scan Backward using facts_project_scope_idx on facts f  (cost=0.28..121.22 rows=100 width=226) (actual time=0.065..0.092 rows=10 loops=1)",
+    "                                Index Cond: ((tenant_id = 'staging-tenant'::text) AND (bank_id = 'staging-bank'::text) AND (project_id = 'tier15-profile-100-20261023'::text))",
+    "                                Filter: (claim ~~* ANY ('{%canonical%,%postgresql%,%persistence%,%store%}'::text[]))",
+    "                                Buffers: shared hit=3",
+    "                          ->  Materialize  (cost=0.15..8.18 rows=1 width=96) (actual time=0.005..0.005 rows=0 loops=10)",
+    "                                Buffers: shared hit=2",
+    "                                ->  Index Only Scan using deleted_facts_pkey on deleted_facts d  (cost=0.15..8.17 rows=1 width=96) (actual time=0.035..0.035 rows=0 loops=1)",
+    "                                      Index Cond: ((tenant_id = 'staging-tenant'::text) AND (bank_id = 'staging-bank'::text))",
+    "                                      Heap Fetches: 0",
+    "                                      Buffers: shared hit=2",
+    "              ->  Index Only Scan using fact_evidence_pkey on fact_evidence fe  (cost=0.41..4.43 rows=1 width=162) (actual time=0.030..0.031 rows=1 loops=10)",
+    "                    Index Cond: ((tenant_id = f.tenant_id) AND (bank_id = f.bank_id) AND (fact_id = f.id) AND (fact_revision = f.revision))",
+    "                    Heap Fetches: 0",
+    "                    Buffers: shared hit=31",
+    "Planning:",
+    "  Buffers: shared hit=348",
+    "Planning Time: 3.699 ms",
+    "Execution Time: 0.982 ms"
+  ],
+  "activitySamples": 18,
+  "waitStates": {
+    "Client:ClientRead": 111
+  }
+}

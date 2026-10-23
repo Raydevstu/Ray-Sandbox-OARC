@@ -11,6 +11,15 @@ services:
       - hindsight-postgres:/var/lib/postgresql/data
       - ./db/migrations/0002_postgres_canonical_memory.sql:/docker-entrypoint-initdb.d/01-canonical.sql:ro
       - ./db/migrations/0003_memory_tombstones.sql:/docker-entrypoint-initdb.d/02-tombstones.sql:ro
+      - ./db/migrations/0004_project_memory.sql:/docker-entrypoint-initdb.d/03-project-memory.sql:ro
+      - ./db/migrations/0005_project_worker.sql:/docker-entrypoint-initdb.d/04-project-worker.sql:ro
+      - ./db/migrations/0006_benchmark_runs.sql:/docker-entrypoint-initdb.d/05-benchmarks.sql:ro
+      - ./db/migrations/0007_project_memory_retention.sql:/docker-entrypoint-initdb.d/06-retention.sql:ro
+      - ./db/migrations/0008_memory_policies.sql:/docker-entrypoint-initdb.d/07-policies.sql:ro
+      - ./db/migrations/0009_typed_graph.sql:/docker-entrypoint-initdb.d/08-typed-graph.sql:ro
+      - ./db/migrations/0010_evaluation_replay.sql:/docker-entrypoint-initdb.d/09-evaluation-replay.sql:ro
+      - ./db/migrations/0011_evaluation_corrections.sql:/docker-entrypoint-initdb.d/10-evaluation-corrections.sql:ro
+      - ./db/migrations/0012_fact_project_scope.sql:/docker-entrypoint-initdb.d/11-fact-project-scope.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hindsight -d hindsight"]
       interval: 5s

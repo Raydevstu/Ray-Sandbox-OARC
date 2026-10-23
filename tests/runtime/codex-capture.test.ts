@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // The plugin runs in Node directly; these helpers are intentionally tested through the same ESM module.
-import { buildCaptureEnvelope, deriveProjectIdentity, parseTranscriptJsonl, redactValue } from '../../plugins/ray-memory/scripts/capture-support.mjs';
+import { buildCaptureEnvelope, captureAccepted, deriveProjectIdentity, parseTranscriptJsonl, redactValue } from '../../plugins/ray-memory/scripts/capture-support.mjs';
 
 describe('Codex transcript-aware capture', () => {
   it('parses bounded JSONL context while skipping malformed lines', () => {
@@ -30,5 +30,17 @@ describe('Codex transcript-aware capture', () => {
     expect(identity.workspacePath).toBe('D:\\Projects\\repo');
     expect(identity.projectId).toMatch(/^codex-[a-f0-9]{24}$/);
     expect(identity.projectId).not.toContain('parent');
+  });
+
+  it('uses one project identity for equivalent Windows path separators', () => {
+    const backslash = deriveProjectIdentity({ cwd: 'D:\\Projects\\repo' });
+    const forwardSlash = deriveProjectIdentity({ cwd: 'D:/Projects/repo' });
+    expect(backslash).toMatchObject({ projectId: forwardSlash.projectId, workspaceId: forwardSlash.workspaceId });
+  });
+
+  it('accepts only successful imports that durably accepted every submitted message', () => {
+    expect(captureAccepted({ ok: true, data: { accepted: 2 } }, 2)).toBe(true);
+    expect(captureAccepted({ ok: true, data: { accepted: 1 } }, 2)).toBe(false);
+    expect(captureAccepted({ ok: false, data: { accepted: 2 } }, 2)).toBe(false);
   });
 });
