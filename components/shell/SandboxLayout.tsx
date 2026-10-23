@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Database, Eye, Gauge, GraduationCap, LayoutDashboard, Search, SlidersHorizontal,
+  BookOpen, Database, Eye, Gauge, GraduationCap, LayoutDashboard, Search, SlidersHorizontal,
   Sparkles, Workflow, Settings2, ChevronsLeft, ChevronsRight, Sun, Moon, ExternalLink, FlaskConical, Cable, History, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,6 +45,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { href: "/sandbox/snapshots", label: "Snapshots", icon: History },
       { href: "/sandbox/benchmarks", label: "Benchmarks", icon: Gauge },
       { href: "/sandbox/integrations", label: "Integrations", icon: Cable },
+      { href: "/sandbox/docs", label: "Docs & Guides", icon: BookOpen },
       { href: "/sandbox/settings", label: "Settings", icon: Settings2 },
     ],
   },

@@ -16,3 +16,12 @@ test('operator workspace is keyboard accessible and explicit about runtime state
     expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')).map((violation) => violation.id), `width ${width}`).toEqual([]);
   }
 });
+
+test('operator section renders authenticated durable route data without a fabricated scope', async ({ page }) => {
+  await page.goto('/sandbox/operator/events?tenantId=staging-tenant&bankId=staging-bank&projectId=staging-project');
+  await expect(page.getByRole('status')).toContainText('healthy');
+  await expect(page.getByRole('status')).toContainText(/durable item/);
+
+  await page.goto('/sandbox/operator/events');
+  await expect(page.getByRole('status')).toContainText('unauthorized');
+});

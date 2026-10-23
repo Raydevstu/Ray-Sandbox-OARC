@@ -13,7 +13,7 @@ export function MemoryReviewPanel({ tenantId, bankId, projectId, recordId }: Rea
     if (!reason.trim()) { setState('error'); setMessage('A review reason is required.'); return; }
     setState('saving');
     try {
-      const response = await fetch('/api/project-memory/review', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tenantId, bankId, projectId, recordId, action, reviewer: 'operator', reason }) });
+      const response = await fetch('/api/project-memory/review', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tenantId, bankId, projectId, recordId, action, reason }) });
       const payload = await response.json() as { ok?: boolean; error?: string };
       if (!response.ok || !payload.ok) throw new Error(payload.error ?? 'Review failed');
       setState('saved'); setMessage('Review recorded. Refresh the audit to see the new projection.');

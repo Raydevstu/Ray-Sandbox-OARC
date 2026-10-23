@@ -29,7 +29,7 @@ export default function BenchmarksPage() {
             <Trophy size={15} className="text-accent" /> Benchmark explorer
           </h2>
           <p className="text-xs text-muted mt-0.5">
-            Published results from the reviewed papers — this sandbox displays and cross-filters them; it does not re-run evaluations.
+            Evidence labels are explicit: imported published references are not local measurements. Local, live-connector, and production runs appear only when directly recorded by the runtime.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">

@@ -21,6 +21,18 @@ describe('Codex project ingestion', () => {
     await expect(persistCodexProjectEvent(repository, event)).resolves.toMatchObject({ duplicate: true, event: { sequence: 1 } });
     expect((await repository.listProjectEvents(scope, 'p1'))).toHaveLength(1);
   });
+  it('treats a concurrent unique-constraint collision as an idempotent duplicate', async () => {
+    const repository = new TestRepository('t1');
+    const event = normalizeCodexMcpEvent(scope, metadata, { messageId: 'm-race', method: 'tools/call' });
+    await repository.appendProjectEventNextSequence(event);
+    const originalAppend = repository.appendProjectEventNextSequence.bind(repository);
+    const originalList = repository.listProjectEvents.bind(repository);
+    let firstRead = true;
+    repository.listProjectEvents = async (...args) => { if (firstRead) { firstRead = false; return []; } return originalList(...args); };
+    repository.appendProjectEventNextSequence = async () => { const error = Object.assign(new Error('duplicate key value violates unique constraint'), { code: '23505' }); throw error; };
+    await expect(persistCodexProjectEvent(repository, event)).resolves.toMatchObject({ duplicate: true, queued: false, event: { sequence: 1 } });
+    repository.appendProjectEventNextSequence = originalAppend;
+  });
   it('rejects missing connector metadata and cross-scope persistence', async () => {
     expect(() => normalizeCodexMcpEvent(scope, { ...metadata, projectId: '' }, { messageId: 'm1', method: 'tools/call' })).toThrow('metadata');
     const repository = new TestRepository('t1');

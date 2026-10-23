@@ -1,0 +1,58 @@
+{
+  "baseUrl": "http://127.0.0.1:3028",
+  "iterations": 100,
+  "concurrency": 100,
+  "duplicateEvery": 10,
+  "scope": {
+    "tenantId": "staging-tenant",
+    "bankId": "staging-bank",
+    "projectId": "tier15-recallqueue20-100-20261023"
+  },
+  "retain": {
+    "p50Ms": 30.25,
+    "p95Ms": 36.43,
+    "p99Ms": 44.97,
+    "maxMs": 147.59
+  },
+  "recall": {
+    "p50Ms": 548.19,
+    "p95Ms": 666.61,
+    "p99Ms": 673.22,
+    "maxMs": 673.55
+  },
+  "events": {
+    "p50Ms": 1507.75,
+    "p95Ms": 2705.19,
+    "p99Ms": 2710.46,
+    "maxMs": 2712.64
+  },
+  "duplicateAttempts": 10,
+  "expectedDuplicateAttempts": 10,
+  "uniqueEvents": 100,
+  "queueDelay": {
+    "p50Ms": 619,
+    "p95Ms": 924,
+    "p99Ms": 958,
+    "maxMs": 972
+  },
+  "worker": {
+    "observed": true,
+    "within60s": true,
+    "total": 100,
+    "complete": 100,
+    "deadLetter": 0,
+    "completionRate": 1
+  },
+  "failures": {
+    "total": 0,
+    "retain": 0,
+    "recall": 0,
+    "events": 0
+  },
+  "gates": {
+    "retainP95Under250ms": true,
+    "recallP95Under500ms": false,
+    "duplicateRetriesIdempotent": true,
+    "workerCompletionWithin60s": true
+  }
+}

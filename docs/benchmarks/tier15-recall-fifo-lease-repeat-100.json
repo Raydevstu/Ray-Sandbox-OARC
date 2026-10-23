@@ -1,0 +1,548 @@
+{
+  "generatedAt": "2026-10-22T20:35:41.737Z",
+  "concurrency": 100,
+  "runs": [
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-fifo-lease-repeat-100-runs\\run-01.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 391.43,
+        "p95Ms": 469.56,
+        "p99Ms": 475.1,
+        "maxMs": 476.36,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398,
+        "stageTimings": {
+          "auth": {
+            "p50Ms": 0.03,
+            "p95Ms": 0.06,
+            "p99Ms": 0.1,
+            "maxMs": 0.24
+          },
+          "scope": {
+            "p50Ms": 0.31,
+            "p95Ms": 0.72,
+            "p99Ms": 0.86,
+            "maxMs": 0.94
+          },
+          "authorize": {
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "p99Ms": 0.01,
+            "maxMs": 0.01
+          },
+          "queue": {
+            "p50Ms": 0.02,
+            "p95Ms": 80.02,
+            "p99Ms": 87.35,
+            "maxMs": 87.74
+          },
+          "repository": {
+            "p50Ms": 0.01,
+            "p95Ms": 0.03,
+            "p99Ms": 0.04,
+            "maxMs": 0.04
+          },
+          "connection": {
+            "p50Ms": 95.05,
+            "p95Ms": 195.99,
+            "p99Ms": 199.6,
+            "maxMs": 202.54
+          },
+          "query": {
+            "p50Ms": 9.12,
+            "p95Ms": 117.86,
+            "p99Ms": 145.38,
+            "maxMs": 145.69
+          },
+          "response": {
+            "p50Ms": 0.41,
+            "p95Ms": 0.76,
+            "p99Ms": 1.23,
+            "maxMs": 1.62
+          }
+        },
+        "leaseFairness": {
+          "samples": 100,
+          "sequenceInversions": 20,
+          "maxSequence": 700,
+          "waitMs": {
+            "p50Ms": 94.78,
+            "p95Ms": 195.88,
+            "p99Ms": 199.41,
+            "maxMs": 202.25
+          }
+        }
+      },
+      "directDatabase": {
+        "p50Ms": 59.65,
+        "p95Ms": 90.26,
+        "p99Ms": 93.56,
+        "maxMs": 93.63,
+        "totalMs": 649.74
+      }
+    },
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-fifo-lease-repeat-100-runs\\run-02.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 434.44,
+        "p95Ms": 522.88,
+        "p99Ms": 528.26,
+        "maxMs": 529.91,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398,
+        "stageTimings": {
+          "auth": {
+            "p50Ms": 0.03,
+            "p95Ms": 0.1,
+            "p99Ms": 0.13,
+            "maxMs": 0.13
+          },
+          "scope": {
+            "p50Ms": 0.34,
+            "p95Ms": 0.83,
+            "p99Ms": 5.79,
+            "maxMs": 8.77
+          },
+          "authorize": {
+            "p50Ms": 0,
+            "p95Ms": 0.01,
+            "p99Ms": 0.01,
+            "maxMs": 0.02
+          },
+          "queue": {
+            "p50Ms": 0.02,
+            "p95Ms": 117.57,
+            "p99Ms": 117.95,
+            "maxMs": 118.43
+          },
+          "repository": {
+            "p50Ms": 0.01,
+            "p95Ms": 0.03,
+            "p99Ms": 0.04,
+            "maxMs": 0.04
+          },
+          "connection": {
+            "p50Ms": 103.83,
+            "p95Ms": 237.58,
+            "p99Ms": 239.81,
+            "maxMs": 240.35
+          },
+          "query": {
+            "p50Ms": 9.44,
+            "p95Ms": 117.6,
+            "p99Ms": 171.56,
+            "maxMs": 171.72
+          },
+          "response": {
+            "p50Ms": 0.46,
+            "p95Ms": 0.79,
+            "p99Ms": 1.53,
+            "maxMs": 1.98
+          }
+        },
+        "leaseFairness": {
+          "samples": 100,
+          "sequenceInversions": 19,
+          "maxSequence": 800,
+          "waitMs": {
+            "p50Ms": 103.6,
+            "p95Ms": 237.5,
+            "p99Ms": 239.66,
+            "maxMs": 240.17
+          }
+        }
+      },
+      "directDatabase": {
+        "p50Ms": 99.19,
+        "p95Ms": 147.59,
+        "p99Ms": 151.43,
+        "maxMs": 151.49,
+        "totalMs": 752.32
+      }
+    },
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-fifo-lease-repeat-100-runs\\run-03.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 461.91,
+        "p95Ms": 579.3,
+        "p99Ms": 594.17,
+        "maxMs": 596.6,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398,
+        "stageTimings": {
+          "auth": {
+            "p50Ms": 0.04,
+            "p95Ms": 0.08,
+            "p99Ms": 0.11,
+            "maxMs": 0.12
+          },
+          "scope": {
+            "p50Ms": 0.35,
+            "p95Ms": 0.77,
+            "p99Ms": 1.08,
+            "maxMs": 1.25
+          },
+          "authorize": {
+            "p50Ms": 0,
+            "p95Ms": 0.01,
+            "p99Ms": 0.01,
+            "maxMs": 0.01
+          },
+          "queue": {
+            "p50Ms": 0.02,
+            "p95Ms": 124.35,
+            "p99Ms": 125.13,
+            "maxMs": 125.48
+          },
+          "repository": {
+            "p50Ms": 0.01,
+            "p95Ms": 0.04,
+            "p99Ms": 0.05,
+            "maxMs": 0.08
+          },
+          "connection": {
+            "p50Ms": 125.8,
+            "p95Ms": 239.28,
+            "p99Ms": 240.18,
+            "maxMs": 241.03
+          },
+          "query": {
+            "p50Ms": 14.23,
+            "p95Ms": 104.71,
+            "p99Ms": 182.36,
+            "maxMs": 199.98
+          },
+          "response": {
+            "p50Ms": 0.5,
+            "p95Ms": 1.44,
+            "p99Ms": 1.86,
+            "maxMs": 3.59
+          }
+        },
+        "leaseFairness": {
+          "samples": 100,
+          "sequenceInversions": 24,
+          "maxSequence": 900,
+          "waitMs": {
+            "p50Ms": 125.52,
+            "p95Ms": 239.1,
+            "p99Ms": 240.09,
+            "maxMs": 240.83
+          }
+        }
+      },
+      "directDatabase": {
+        "p50Ms": 100.7,
+        "p95Ms": 132.88,
+        "p99Ms": 135.72,
+        "maxMs": 135.8,
+        "totalMs": 826.36
+      }
+    },
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-fifo-lease-repeat-100-runs\\run-04.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 510.73,
+        "p95Ms": 607.34,
+        "p99Ms": 625.39,
+        "maxMs": 629.1,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398,
+        "stageTimings": {
+          "auth": {
+            "p50Ms": 0.04,
+            "p95Ms": 0.06,
+            "p99Ms": 0.1,
+            "maxMs": 0.17
+          },
+          "scope": {
+            "p50Ms": 0.37,
+            "p95Ms": 0.82,
+            "p99Ms": 3.47,
+            "maxMs": 4.94
+          },
+          "authorize": {
+            "p50Ms": 0,
+            "p95Ms": 0.01,
+            "p99Ms": 0.01,
+            "maxMs": 0.01
+          },
+          "queue": {
+            "p50Ms": 0.02,
+            "p95Ms": 134.4,
+            "p99Ms": 135.81,
+            "maxMs": 136.7
+          },
+          "repository": {
+            "p50Ms": 0.01,
+            "p95Ms": 0.03,
+            "p99Ms": 0.04,
+            "maxMs": 0.07
+          },
+          "connection": {
+            "p50Ms": 111.35,
+            "p95Ms": 269.22,
+            "p99Ms": 271.46,
+            "maxMs": 273.15
+          },
+          "query": {
+            "p50Ms": 10.88,
+            "p95Ms": 163.57,
+            "p99Ms": 165.98,
+            "maxMs": 167.06
+          },
+          "response": {
+            "p50Ms": 0.44,
+            "p95Ms": 1.04,
+            "p99Ms": 1.31,
+            "maxMs": 3.24
+          }
+        },
+        "leaseFairness": {
+          "samples": 100,
+          "sequenceInversions": 20,
+          "maxSequence": 1000,
+          "waitMs": {
+            "p50Ms": 110.39,
+            "p95Ms": 269.05,
+            "p99Ms": 271.3,
+            "maxMs": 273.07
+          }
+        }
+      },
+      "directDatabase": {
+        "p50Ms": 104.79,
+        "p95Ms": 139.52,
+        "p99Ms": 141.87,
+        "maxMs": 142.69,
+        "totalMs": 846.53
+      }
+    },
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-fifo-lease-repeat-100-runs\\run-05.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 437.41,
+        "p95Ms": 530.98,
+        "p99Ms": 535.89,
+        "maxMs": 538.9,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398,
+        "stageTimings": {
+          "auth": {
+            "p50Ms": 0.03,
+            "p95Ms": 0.07,
+            "p99Ms": 0.16,
+            "maxMs": 0.16
+          },
+          "scope": {
+            "p50Ms": 0.32,
+            "p95Ms": 0.74,
+            "p99Ms": 3.05,
+            "maxMs": 4.57
+          },
+          "authorize": {
+            "p50Ms": 0,
+            "p95Ms": 0.01,
+            "p99Ms": 0.01,
+            "maxMs": 0.07
+          },
+          "queue": {
+            "p50Ms": 0.21,
+            "p95Ms": 113.13,
+            "p99Ms": 114.24,
+            "maxMs": 114.48
+          },
+          "repository": {
+            "p50Ms": 0.01,
+            "p95Ms": 0.03,
+            "p99Ms": 0.12,
+            "maxMs": 0.99
+          },
+          "connection": {
+            "p50Ms": 104.65,
+            "p95Ms": 214.5,
+            "p99Ms": 216.32,
+            "maxMs": 216.44
+          },
+          "query": {
+            "p50Ms": 9.84,
+            "p95Ms": 110.63,
+            "p99Ms": 169.87,
+            "maxMs": 173.63
+          },
+          "response": {
+            "p50Ms": 0.44,
+            "p95Ms": 0.74,
+            "p99Ms": 0.96,
+            "maxMs": 1.03
+          }
+        },
+        "leaseFairness": {
+          "samples": 100,
+          "sequenceInversions": 20,
+          "maxSequence": 1100,
+          "waitMs": {
+            "p50Ms": 104.45,
+            "p95Ms": 214.42,
+            "p99Ms": 216.12,
+            "maxMs": 216.37
+          }
+        }
+      },
+      "directDatabase": {
+        "p50Ms": 85.74,
+        "p95Ms": 127.12,
+        "p99Ms": 129.97,
+        "maxMs": 130.03,
+        "totalMs": 736.55
+      }
+    }
+  ],
+  "summary": {
+    "runs": 5,
+    "runP95Ms": [
+      469.56,
+      522.88,
+      579.3,
+      607.34,
+      530.98
+    ],
+    "failedRequests": 0,
+    "p50OfRunP95Ms": 530.98,
+    "p95OfRunP95Ms": 607.34,
+    "p99OfRunP95Ms": 607.34,
+    "maxRunP95Ms": 607.34,
+    "stageP95MsByRun": {
+      "auth": [
+        0.06,
+        0.1,
+        0.08,
+        0.06,
+        0.07
+      ],
+      "scope": [
+        0.72,
+        0.83,
+        0.77,
+        0.82,
+        0.74
+      ],
+      "authorize": [
+        0,
+        0.01,
+        0.01,
+        0.01,
+        0.01
+      ],
+      "queue": [
+        80.02,
+        117.57,
+        124.35,
+        134.4,
+        113.13
+      ],
+      "repository": [
+        0.03,
+        0.03,
+        0.04,
+        0.03,
+        0.03
+      ],
+      "connection": [
+        195.99,
+        237.58,
+        239.28,
+        269.22,
+        214.5
+      ],
+      "query": [
+        117.86,
+        117.6,
+        104.71,
+        163.57,
+        110.63
+      ],
+      "response": [
+        0.76,
+        0.79,
+        1.44,
+        1.04,
+        0.74
+      ]
+    },
+    "sloTargetMs": 500,
+    "sloPassed": false
+  },
+  "leaseFairnessByRun": [
+    {
+      "samples": 100,
+      "sequenceInversions": 20,
+      "maxSequence": 700,
+      "waitMs": {
+        "p50Ms": 94.78,
+        "p95Ms": 195.88,
+        "p99Ms": 199.41,
+        "maxMs": 202.25
+      }
+    },
+    {
+      "samples": 100,
+      "sequenceInversions": 19,
+      "maxSequence": 800,
+      "waitMs": {
+        "p50Ms": 103.6,
+        "p95Ms": 237.5,
+        "p99Ms": 239.66,
+        "maxMs": 240.17
+      }
+    },
+    {
+      "samples": 100,
+      "sequenceInversions": 24,
+      "maxSequence": 900,
+      "waitMs": {
+        "p50Ms": 125.52,
+        "p95Ms": 239.1,
+        "p99Ms": 240.09,
+        "maxMs": 240.83
+      }
+    },
+    {
+      "samples": 100,
+      "sequenceInversions": 20,
+      "maxSequence": 1000,
+      "waitMs": {
+        "p50Ms": 110.39,
+        "p95Ms": 269.05,
+        "p99Ms": 271.3,
+        "maxMs": 273.07
+      }
+    },
+    {
+      "samples": 100,
+      "sequenceInversions": 20,
+      "maxSequence": 1100,
+      "waitMs": {
+        "p50Ms": 104.45,
+        "p95Ms": 214.42,
+        "p99Ms": 216.12,
+        "maxMs": 216.37
+      }
+    }
+  ]
+}

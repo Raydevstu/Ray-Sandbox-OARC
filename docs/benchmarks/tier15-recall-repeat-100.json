@@ -1,0 +1,128 @@
+{
+  "generatedAt": "2026-10-22T20:05:45.495Z",
+  "concurrency": 100,
+  "runs": [
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-repeat-100-runs\\run-01.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 567.08,
+        "p95Ms": 667.81,
+        "p99Ms": 676.31,
+        "maxMs": 678.46,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398
+      },
+      "directDatabase": {
+        "p50Ms": 63.97,
+        "p95Ms": 104.61,
+        "p99Ms": 109.52,
+        "maxMs": 109.94,
+        "totalMs": 869.08
+      }
+    },
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-repeat-100-runs\\run-02.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 479.22,
+        "p95Ms": 588.44,
+        "p99Ms": 596.22,
+        "maxMs": 600.13,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398
+      },
+      "directDatabase": {
+        "p50Ms": 58.06,
+        "p95Ms": 118.39,
+        "p99Ms": 120.47,
+        "maxMs": 120.77,
+        "totalMs": 785.99
+      }
+    },
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-repeat-100-runs\\run-03.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 430.03,
+        "p95Ms": 497.24,
+        "p99Ms": 502.3,
+        "maxMs": 505.49,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398
+      },
+      "directDatabase": {
+        "p50Ms": 70.1,
+        "p95Ms": 137.5,
+        "p99Ms": 141.83,
+        "maxMs": 142.16,
+        "totalMs": 737.2
+      }
+    },
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-repeat-100-runs\\run-04.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 412.8,
+        "p95Ms": 509.14,
+        "p99Ms": 516.82,
+        "maxMs": 520.34,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398
+      },
+      "directDatabase": {
+        "p50Ms": 71.04,
+        "p95Ms": 130.44,
+        "p99Ms": 132.61,
+        "maxMs": 132.72,
+        "totalMs": 705.29
+      }
+    },
+    {
+      "code": 0,
+      "reportPath": "D:\\Projects\\RAY SANDBOX OWEN\\hindsight-memory-slice\\docs\\benchmarks\\tier15-recall-repeat-100-runs\\run-05.json",
+      "request": {
+        "failures": 0,
+        "p50Ms": 369.4,
+        "p95Ms": 456.38,
+        "p99Ms": 462.21,
+        "maxMs": 464.38,
+        "factsP95": 10,
+        "evidenceP95": 10,
+        "resultBytesP95": 9398
+      },
+      "directDatabase": {
+        "p50Ms": 80.23,
+        "p95Ms": 138.34,
+        "p99Ms": 141.17,
+        "maxMs": 143.15,
+        "totalMs": 672.83
+      }
+    }
+  ],
+  "summary": {
+    "runs": 5,
+    "runP95Ms": [
+      667.81,
+      588.44,
+      497.24,
+      509.14,
+      456.38
+    ],
+    "failedRequests": 0,
+    "p50OfRunP95Ms": 509.14,
+    "p95OfRunP95Ms": 667.81,
+    "p99OfRunP95Ms": 667.81,
+    "maxRunP95Ms": 667.81,
+    "sloTargetMs": 500,
+    "sloPassed": false
+  }
+}

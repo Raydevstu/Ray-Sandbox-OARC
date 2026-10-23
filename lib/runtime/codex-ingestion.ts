@@ -47,9 +47,16 @@ export const persistCodexProjectEvent = async (repository: CanonicalRepository, 
   const existing = await repository.listProjectEvents(event, event.projectId);
   const duplicate = existing.some((candidate) => candidate.id === event.id);
   if (duplicate) return { event: existing.find((candidate) => candidate.id === event.id) ?? event, duplicate: true, queued: false };
-  const sequence = existing.reduce((max, candidate) => Math.max(max, candidate.sequence), 0) + 1;
-  const persisted = { ...event, sequence };
-  await repository.appendProjectEvent(persisted);
+  let persisted: ProjectEvent;
+  try {
+    persisted = await repository.appendProjectEventNextSequence(event);
+  } catch (error) {
+    if (!(error && typeof error === 'object' && 'code' in error && error.code === '23505')) throw error;
+    const raced = await repository.listProjectEvents(event, event.projectId);
+    const racedEvent = raced.find((candidate) => candidate.id === event.id);
+    if (!racedEvent) throw error;
+    return { event: racedEvent, duplicate: true, queued: false };
+  }
   const queued = dispatcher && 'enqueueAsync' in dispatcher
     ? await (dispatcher as AsyncProjectMemoryEnqueuer).enqueueAsync(persisted)
     : dispatchProjectMemory(dispatcher, persisted);

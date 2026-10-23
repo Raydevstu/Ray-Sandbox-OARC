@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { isRuntimeStoreConfigured, checkRuntimeStore } from '../../lib/runtime/repository';
+import { isRuntimeStoreConfigured, checkRuntimeStore, poolMaxFromEnv } from '../../lib/runtime/repository';
 
 describe('runtime repository boundary', () => {
   it('does not treat the deterministic file default as a PostgreSQL runtime', () => {
@@ -13,5 +13,11 @@ describe('runtime repository boundary', () => {
     await expect(checkRuntimeStore()).resolves.toBe('not_configured');
     vi.unstubAllEnvs();
   });
-});
 
+  it('bounds the configured pool size to a safe range', () => {
+    expect(poolMaxFromEnv({ APEX_DB_POOL_MAX: '10' })).toBe(10);
+    expect(poolMaxFromEnv({ APEX_DB_POOL_MAX: '1' })).toBe(1);
+    expect(poolMaxFromEnv({ APEX_DB_POOL_MAX: '999' })).toBe(50);
+    expect(poolMaxFromEnv({ APEX_DB_POOL_MAX: 'invalid' })).toBe(5);
+  });
+});

@@ -66,30 +66,44 @@ export const parseTranscriptJsonl = (raw, options = {}) => {
 
 const firstString = (...values) => values.map(asString).find(Boolean);
 
+const hookContext = (input) => {
+  const record = input && typeof input === 'object' ? input : {};
+  const nested = ['payload', 'data', 'context', 'event_data', 'eventData', 'hook_input', 'hookInput']
+    .map((key) => record[key])
+    .filter((value) => value && typeof value === 'object' && !Array.isArray(value));
+  return Object.assign({}, ...nested, record);
+};
+
 export const deriveProjectIdentity = (input, repositoryRoot) => {
   const repository = input?.repository && typeof input.repository === 'object' ? input.repository : {};
   const git = input?.git && typeof input.git === 'object' ? input.git : {};
   const root = firstString(repositoryRoot, input?.project_root, input?.projectRoot, input?.repository_root, input?.repo_root, repository.root, repository.path, input?.workspace_root, input?.workspaceRoot, input?.workspace?.root, input?.workspace?.path, input?.cwd);
-  const normalizedRoot = root ? root.replace(/[\\/]+$/, '') : undefined;
+  const workspacePath = root ? root.replace(/[\\/]+$/, '') : undefined;
+  const normalizedRoot = workspacePath?.replace(/\\/g, '/');
   const explicitProjectId = firstString(input?.project_id, input?.projectId);
   const explicitWorkspaceId = firstString(input?.workspace_id, input?.workspaceId);
   const remote = firstString(input?.repository_remote, input?.repositoryRemote, repository.remote, repository.url, git.remote);
   const projectId = explicitProjectId ?? `codex-${stableHash(remote ? `remote:${remote}` : `root:${normalizedRoot ?? 'unknown'}`).slice(0, 24)}`;
   const workspaceId = explicitWorkspaceId ?? `workspace-${stableHash(normalizedRoot ?? projectId).slice(0, 24)}`;
-  return { projectId, workspaceId, workspacePath: normalizedRoot };
+  return { projectId, workspaceId, workspacePath };
 };
 
 const messageKey = (message) => `${message.role}\u0000${message.content}`;
 
+export const captureAccepted = (response, messageCount) => response?.ok === true
+  && Number.isInteger(response?.data?.accepted)
+  && response.data.accepted === messageCount;
+
 export const buildCaptureEnvelope = (input, { repositoryRoot, transcriptRaw = '' } = {}) => {
-  const eventName = firstString(input?.hook_event_name, input?.event) ?? 'codex-hook';
-  const identity = deriveProjectIdentity(input, repositoryRoot);
-  const directPrompt = asString(input?.prompt);
-  const directAssistant = asString(input?.last_assistant_message);
-  const conversationId = firstString(input?.session_id, input?.conversation_id, input?.thread_id) ?? `codex-transcript-${stableHash(input?.transcript_path ?? identity.projectId).slice(0, 24)}`;
-  const timestamp = firstString(input?.timestamp, input?.created_at) ?? '1970-01-01T00:00:00.000Z';
-  const explicitPromptId = firstString(input?.prompt_id, input?.message_id);
-  const explicitAssistantId = firstString(input?.response_id, input?.assistant_message_id, input?.stop_id);
+  const context = hookContext(input);
+  const eventName = firstString(context.hook_event_name, context.event, context.name) ?? 'codex-hook';
+  const identity = deriveProjectIdentity(context, repositoryRoot);
+  const directPrompt = firstString(context.prompt, context.user_prompt, context.userPrompt, context.input, context.message?.content, context.message?.text);
+  const directAssistant = firstString(context.last_assistant_message, context.lastAssistantMessage, context.assistant_message, context.assistantMessage, context.output, context.response?.content, context.response?.text);
+  const conversationId = firstString(context.session_id, context.sessionId, context.conversation_id, context.conversationId, context.thread_id, context.threadId) ?? `codex-transcript-${stableHash(context.transcript_path ?? context.transcriptPath ?? identity.projectId).slice(0, 24)}`;
+  const timestamp = firstString(context.timestamp, context.created_at, context.createdAt) ?? '1970-01-01T00:00:00.000Z';
+  const explicitPromptId = firstString(context.prompt_id, context.promptId, context.message_id, context.messageId);
+  const explicitAssistantId = firstString(context.response_id, context.responseId, context.assistant_message_id, context.assistantMessageId, context.stop_id, context.stopId);
   const direct = [
     directPrompt ? { id: explicitPromptId ?? `hook-${stableHash(conversationId, eventName, 'user', directPrompt, timestamp)}`, role: 'user', content: redactString(directPrompt) } : undefined,
     directAssistant ? { id: explicitAssistantId ?? `hook-${stableHash(conversationId, eventName, 'assistant', directAssistant, timestamp)}`, role: 'assistant', content: redactString(directAssistant) } : undefined,

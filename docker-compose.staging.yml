@@ -15,6 +15,11 @@ services:
       - ./db/migrations/0005_project_worker.sql:/docker-entrypoint-initdb.d/04-project-worker.sql:ro
       - ./db/migrations/0006_benchmark_runs.sql:/docker-entrypoint-initdb.d/05-benchmarks.sql:ro
       - ./db/migrations/0007_project_memory_retention.sql:/docker-entrypoint-initdb.d/06-retention.sql:ro
+      - ./db/migrations/0008_memory_policies.sql:/docker-entrypoint-initdb.d/07-policies.sql:ro
+      - ./db/migrations/0009_typed_graph.sql:/docker-entrypoint-initdb.d/08-typed-graph.sql:ro
+      - ./db/migrations/0010_evaluation_replay.sql:/docker-entrypoint-initdb.d/09-evaluation-replay.sql:ro
+      - ./db/migrations/0011_evaluation_corrections.sql:/docker-entrypoint-initdb.d/10-evaluation-corrections.sql:ro
+      - ./db/migrations/0012_fact_project_scope.sql:/docker-entrypoint-initdb.d/11-fact-project-scope.sql:ro
       - ./db/staging/seed-scope.sql:/docker-entrypoint-initdb.d/99-seed-scope.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U staging -d ray_sandbox_staging"]
@@ -33,6 +38,9 @@ services:
       APEX_AUDIT_BANK_ID: staging-bank
       APEX_AUDIT_PROJECT_ID: staging-project
       APEX_ALLOW_DEV_PRINCIPAL: "true"
+      APEX_PROFILE_RECALL: "true"
+      APEX_DB_POOL_MAX: "${APEX_DB_POOL_MAX:-5}"
+      APEX_RECALL_CONCURRENCY: "${APEX_RECALL_CONCURRENCY:-100}"
     depends_on:
       postgres:
         condition: service_healthy

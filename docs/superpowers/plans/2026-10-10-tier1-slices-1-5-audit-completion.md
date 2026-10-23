@@ -20,6 +20,27 @@
 | 4 — Closed-Loop Evaluation and Replay | **COMPLETE for local deterministic scope; TESTED / LOCALLY VERIFIED** | 512-case versioned report, durable PostgreSQL artifacts, eleven failure classes, correction proposals, source-run checks, idempotency, missing-trace checks, and regression refusal are recorded and replayed. | Provider/human-reviewed quality, approval UI, live connector, and production evidence remain separate release-governance holds; they do not invalidate local replay completion. |
 | 5 — Developer API and Operator UX | **PENDING — can complete locally** | SDK and six-route developer boundary exist; operator shell is keyboard/focus/reduced-motion/axe tested at 375/768/1440. | Wire operator subsections to authenticated durable data, enforce project filtering in trace, cover all seven operational states per major route, run PostgreSQL workflow integration, and complete the browser diagnosis journey. |
 
+## Audit refinement: pending work by slice
+
+This section separates unfinished local implementation from evidence that requires a user-held external dependency.
+
+| Slice | Confirmed current position | Can complete locally now | Manual / external hold |
+|---|---|---|---|
+| 1 | Local audits, workload, dead-letter replay, and partial browser evidence exist. The measured workload was serialized because concurrent retain exposed a non-atomic repository path. | Make retain plus evidence, outbox, and ledger writes one transaction; add same-bank cross-project and cross-tenant corpus tests; seed a reviewable record; implement/export and authorize it; rerun staging and browser checks. | External deployment, deployed-target restore/RPO/RTO, and production retention policy evidence remain out of scope. |
+| 2 | Domain, migration, route, temporal filters, conflict states, and two-hop explanations are implemented and tested. The existing browser coverage reaches the API but is not a dedicated graph diagnosis journey. | Add an authenticated graph journey proving as-of, before-upgrade, superseded, contradiction, aliases, and complete two-hop explanation; capture responsive, keyboard, reduced-motion, and axe evidence. | No paid dependency is required for this local gate. |
+| 3 | Provider-neutral proposal validation, budgets, timeouts, deterministic fallback, redacted telemetry, and approval routing are implemented/tested. | Add deterministic approval-queue/API/browser fixtures and prove malformed, rejected, sensitive, ambiguous, timeout, and budget-exceeded proposals cannot persist canonical records. | Authorized provider execution and human-reviewed quality measurement require user authorization and may require paid/online provider access. |
+| 4 | 512-case corpus, durable metrics, eleven failure fixtures, correction proposals, workflow replay, idempotency, scope checks, missing-trace checks, regression refusal, and PostgreSQL readback are locally complete. | Expose approval/replay artifacts in the operator workspace and add authenticated browser readback/action evidence; keep replay report hashes and counts in the final audit. | Provider/human quality, live connector, and production evidence remain separate release gates. |
+| 5 | Developer SDK boundary and operator navigation shell are implemented/tested; shell-only browser coverage passes. | Enforce project filtering in trace; run the full SDK workflow against PostgreSQL; wire conflicts/policies/events/exports to authenticated durable handlers; cover empty, queued, healthy, degraded, unavailable, failed, unauthorized for each major route; complete the diagnosis journey. | No paid dependency is required for local completion. |
+
+### Direct verification snapshot
+
+- `npm test`: 65 test files passed, 1 skipped; 212 tests passed, 5 skipped.
+- `npm run typecheck`: passed.
+- `git diff --check`: passed with existing line-ending warnings only.
+- Current checkpoint: `0d24489 chore: checkpoint slices 1-5 local implementation`.
+- Current uncommitted paths are cache/test-result folders only: `.firecrawl/` and `test-results/`.
+- The census helper was not available at the documented path in this Windows checkout; no census-derived claim is made here.
+
 ## Evidence boundary
 
 The local plan may claim `IMPLEMENTED`, `TESTED`, `LOCALLY VERIFIED`, and `BROWSER VERIFIED` only after direct checks. It must not claim `BENCHMARK VERIFIED` for provider quality from a deterministic judge alone, `LIVE CONNECTOR VERIFIED` from a shared contract, or `PRODUCTION VERIFIED` from Docker staging. External deployment, managed credentials, rollback/RPO/RTO, and non-Codex connector authorization remain frozen unless explicitly authorized.
@@ -44,6 +65,7 @@ The local plan may claim `IMPLEMENTED`, `TESTED`, `LOCALLY VERIFIED`, and `BROWS
 - [ ] Implement the smallest transaction and export changes behind existing repository/API boundaries.
 - [ ] Run focused tests, `npm run staging:validate`, `npm run quality:slo:workload`, and `npm run quality:audit:postgres`.
 - [ ] Run the authenticated browser journey with a deterministic reviewable fixture at 768px and verify export access control.
+- [ ] Do not upgrade Slice 1 beyond `LOCALLY VERIFIED / BROWSER VERIFIED` until concurrent retain and export evidence are directly rerun.
 
 ### Task 2: Finish Slice 2 browser evidence
 
@@ -54,6 +76,7 @@ The local plan may claim `IMPLEMENTED`, `TESTED`, `LOCALLY VERIFIED`, and `BROWS
 - [ ] Add authenticated as-of, superseded, contradiction, and two-hop explanation assertions.
 - [ ] Verify 375/768/1440 layouts, keyboard focus, reduced motion, and serious/critical axe results.
 - [ ] Run the focused graph journey and then `npm run test:e2e`.
+- [ ] Preserve the graph explanation tree and temporal/conflict assertions as named artifacts in the handoff.
 
 ### Task 3: Measure Slice 3 with authorized provider and human review
 
@@ -67,6 +90,11 @@ The local plan may claim `IMPLEMENTED`, `TESTED`, `LOCALLY VERIFIED`, and `BROWS
 - [ ] Prove malformed, rejected, timeout, budget-exceeded, sensitive, and ambiguous results cannot become canonical records.
 - [ ] Mark provider evidence as pending if authorization or paid access is unavailable.
 
+Local preparation before authorization:
+
+- [ ] Add a deterministic approval-queue fixture and authenticated route test for `allow`, `deny`, `redact`, `require_review`, and `defer`.
+- [ ] Add browser evidence that a rejected or malformed proposal is visible as a reviewable state and cannot create a canonical memory.
+
 ### Task 4: Preserve Slice 4 local completion and add operator approval evidence
 
 **Files:**
@@ -76,6 +104,7 @@ The local plan may claim `IMPLEMENTED`, `TESTED`, `LOCALLY VERIFIED`, and `BROWS
 - [ ] Expose durable correction proposals and replay comparisons through authenticated operator reads.
 - [ ] Add approve/reject/replay actions with scope, idempotency, event-ledger, and audit assertions.
 - [ ] Re-run `npm run quality:slice4:report` and `npm run quality:slice4:replay`; preserve report hashes and PostgreSQL readback counts.
+- [ ] Keep Slice 4 marked locally complete while separately tracking the approval UI and browser evidence as governance work.
 
 ### Task 5: Complete Slice 5 developer workflow
 
@@ -87,6 +116,7 @@ The local plan may claim `IMPLEMENTED`, `TESTED`, `LOCALLY VERIFIED`, and `BROWS
 - [ ] Enforce project scope in trace retrieval or make the contract explicitly correlation-only; the implementation must not imply filtering it does not perform.
 - [ ] Exercise `retain → recall → trace → correct → replay → evaluate` against local PostgreSQL, including unavailable, unauthorized, malformed, duplicate, and regression paths.
 - [ ] Verify correction creates revision, event, outbox, and replay-readable evidence.
+- [ ] Verify a same-bank record from another project is absent from trace results; returning `projectId` in the envelope is not sufficient.
 
 ### Task 6: Complete Slice 5 operator workspace
 
@@ -99,6 +129,7 @@ The local plan may claim `IMPLEMENTED`, `TESTED`, `LOCALLY VERIFIED`, and `BROWS
 - [ ] Cover all seven required states on every major route with stable test fixtures.
 - [ ] Add the diagnosis journey: selected memory → evidence → graph path → policy/conflict → event/replay outcome.
 - [ ] Re-run browser checks at 375/768/1440 with keyboard, visible focus, reduced motion, and axe validation.
+- [ ] Record one authenticated diagnosis path from selected memory through evidence, graph/conflict/policy state, event, and replay outcome.
 
 ### Task 7: Final local release audit
 
@@ -106,6 +137,16 @@ The local plan may claim `IMPLEMENTED`, `TESTED`, `LOCALLY VERIFIED`, and `BROWS
 - [ ] Inspect migration status, dirty-worktree boundaries, report hashes, PostgreSQL readback, and `git diff --check`.
 - [ ] Update the roadmap and handoff with dated evidence totals, skipped tests, remaining manual-assist items, and explicit online/paid holds.
 - [ ] Do not mark the overall platform production-ready until authorized provider, connector, deployment, rollback/RPO/RTO, and production evidence exists.
+
+## Recommended execution order for the next chat
+
+1. Task 1 — Slice 1 atomic integrity and export.
+2. Task 5 — Slice 5 project-scoped trace and PostgreSQL developer workflow.
+3. Task 6 — Slice 5 durable operator workspace and seven-state coverage.
+4. Task 2 — Slice 2 dedicated graph browser journey.
+5. Task 4 — Slice 4 operator approval and replay readback evidence.
+6. Local preparation in Task 3, then pause for explicit provider/human-review authorization.
+7. Task 7 — final local audit and evidence-matrix update.
 
 ## Exit decision
 
