@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  BookOpen, Database, Eye, Gauge, GraduationCap, LayoutDashboard, Search, SlidersHorizontal,
+  BookOpen, Database, Eye, Gauge, GraduationCap, LayoutDashboard, Search, SlidersHorizontal, PanelsTopLeft,
   Sparkles, Workflow, Settings2, ChevronsLeft, ChevronsRight, Sun, Moon, ExternalLink, FlaskConical, Cable, History, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

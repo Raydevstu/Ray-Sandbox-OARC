@@ -8,7 +8,7 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
   if (!databaseUrl.trim()) throw new RuntimeConfigError('APEX_DATABASE_URL must not be empty');
   const logLevel = env.APEX_LOG_LEVEL ?? 'info';
   if (!['debug', 'info', 'warn', 'error'].includes(logLevel)) throw new RuntimeConfigError(`Invalid APEX_LOG_LEVEL: ${logLevel}`);
-  const requireJwt = env.APEX_REQUIRE_JWT === 'true' || environment === 'production' && env.APEX_ALLOW_DEV_PRINCIPAL !== 'true';
+  const requireJwt = env.APEX_REQUIRE_JWT === 'true' || environment === 'production';
   const developmentProjectIds = (env.APEX_DEV_PROJECT_IDS ?? 'RayBots').split(',').map((value) => value.trim()).filter(Boolean);
   return { environment: environment as RuntimeConfig['environment'], databaseUrl, logLevel: logLevel as RuntimeConfig['logLevel'], jwtIssuer: env.APEX_JWT_ISSUER, jwksUrl: env.APEX_JWKS_URL, allowDevelopmentPrincipal: !requireJwt && (env.APEX_ALLOW_DEV_PRINCIPAL === 'true' || environment === 'test'), requireJwt, developmentProjectIds };
 }

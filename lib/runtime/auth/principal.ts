@@ -3,7 +3,7 @@ import { ScopeError } from '../errors';
 import type { MemoryScope } from '../contracts';
 
 export type Permission = 'memory:read' | 'memory:write' | 'events:write' | 'jobs:claim' | 'snapshots:write';
-export type Principal = Readonly<{ subject: string; tenantId: string; scopes: ReadonlySet<Permission>; allowedProjectIds: readonly string[]; source: 'jwt' | 'dev' | 'service' }>;
+export type Principal = Readonly<{ subject: string; tenantId: string; bankId?: string; projectId?: string; scopes: ReadonlySet<Permission>; allowedProjectIds: readonly string[]; source: 'jwt' | 'dev' | 'service' }>;
 
 export const developmentPrincipal = (config: RuntimeConfig, request: Request): Principal => {
   // Production remains locked down by default. An explicitly supplied
