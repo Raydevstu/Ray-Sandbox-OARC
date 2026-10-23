@@ -111,6 +111,7 @@ export async function POST(request: Request) {
     recordMcp('success');
     return rpc(body.id, { content: [{ type: 'text', text: JSON.stringify(result.data) }], structuredContent: result.data }, 200, session.id);
   } catch (error) {
+    console.error('MCP request failed', { method: body.method, error: error instanceof Error ? error.message : String(error) });
     const isAuthFailure = error instanceof Error && (error.message.includes('credential') || error.message.includes('authentication'));
     const isScopeFailure = error instanceof Error && (error.message.includes('scope') || error.message.includes('permission') || error.message.includes('project is not permitted'));
     return rpcError(body.id, -32602, isAuthFailure || isScopeFailure ? 'access denied' : 'Invalid MCP request parameters', isAuthFailure ? 401 : isScopeFailure ? 403 : 400, request.headers.get('mcp-session-id') ?? undefined);

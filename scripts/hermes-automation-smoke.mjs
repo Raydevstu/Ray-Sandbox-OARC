@@ -27,9 +27,10 @@ async function call(method, params = {}) {
   const response = await fetch(endpoint, { method: 'POST', headers: requestHeaders, body: JSON.stringify(request) });
   const returnedSessionId = response.headers.get('mcp-session-id');
   if (returnedSessionId) sessionId = returnedSessionId;
-  const body = await response.json();
-  if (!response.ok || body.error) throw new Error(`${method} failed: HTTP ${response.status} ${JSON.stringify(body.error ?? body)}`);
-  return body.result;
+  const rawBody = await response.text();
+  const body = rawBody.trim() ? JSON.parse(rawBody) : null;
+  if (!response.ok || body?.error) throw new Error(`${method} failed: HTTP ${response.status} ${JSON.stringify(body?.error ?? body ?? rawBody)}`);
+  return body?.result;
 }
 
 const correlationId = `hermes-automation-${Date.now()}`;
@@ -58,7 +59,10 @@ const recallText = text(recall);
 const retainedText = text(retained);
 if (!statusText || !stateText || !recallText || !retainedText) throw new Error('one or more MCP tools returned empty content');
 const recallPayload = JSON.parse(recallText);
-if (!Array.isArray(recallPayload.facts) || !recallPayload.facts.some((fact) => String(fact.content ?? '').includes('Hermes automation smoke retained fact'))) {
+if (!Array.isArray(recallPayload.facts) || !recallPayload.facts.some((fact) => String(fact.claim ?? fact.content ?? '').includes('Hermes automation smoke retained fact'))) {
   throw new Error('retained fact was not visible through MCP recall');
 }
+const statusPayload = JSON.parse(statusText);
+const capture = statusPayload.capture ?? statusPayload;
+if (Number(capture.processed ?? 0) < 1) throw new Error('worker did not report a processed capture');
 process.stdout.write(`${JSON.stringify({ ok: true, endpoint, projectId, checks: ['initialize', 'initialized-notification', 'retain', 'capture-status', 'project-state', 'worker-complete', 'recall-visible'] })}\n`);
