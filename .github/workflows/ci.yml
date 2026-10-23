@@ -37,6 +37,6 @@ jobs:
         with:
           context: .
           push: false
-          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          tags: ghcr.io/raydevstu/ray-sandbox-oarc:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
