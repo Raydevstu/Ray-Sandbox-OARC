@@ -1,5 +1,5 @@
-import { OarcStatusBadge } from "@/components/oarc-v2/foundation";
+import { RuntimeTruthStatus } from './RuntimeTruthStatus';
 
 export function OperatorStatusLine() {
-  return <footer className="oarc-status-line" aria-live="polite"><OarcStatusBadge tone="ok">Local UI ready</OarcStatusBadge><span>Keyboard navigation enabled</span><span className="hidden sm:inline">V2.1 visual foundations</span></footer>;
+  return <footer className="oarc-status-line" aria-live="polite"><RuntimeTruthStatus /><span>Keyboard navigation enabled</span></footer>;
 }

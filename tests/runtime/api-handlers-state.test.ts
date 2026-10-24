@@ -9,7 +9,7 @@ const request = (path: string, body: Record<string, unknown>) => new Request(`ht
 describe('developer API handler states', () => {
   it('reports healthy after retaining durable memory', async () => {
     const before = runtimeMetrics.snapshot().operations.retain;
-    const response = await createRetainHandler(new TestRepository('tenant-1'))(request('/api/v1/memory/retain', { tenantId: 'tenant-1', bankId: 'bank-1', projectId: 'project-1', content: 'durable fact', source: 'test', provenance: 'test', idempotencyKey: 'state-retain' }));
+    const response = await createRetainHandler(new TestRepository('tenant-1'))(request('/api/v1/memory/retain', { tenantId: 'tenant-1', bankId: 'bank-1', projectId: 'project-1', workflowRunId: 'workflow-test', content: 'durable fact', source: 'test', provenance: 'test', idempotencyKey: 'state-retain' }));
 
     await expect(response.json()).resolves.toMatchObject({ ok: true, state: 'healthy' });
     expect(runtimeMetrics.snapshot().operations.retain).toBe(before + 1);

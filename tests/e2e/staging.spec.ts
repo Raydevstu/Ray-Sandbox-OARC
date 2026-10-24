@@ -12,7 +12,7 @@ test.describe('staging operational surfaces', () => {
 
   test('shows benchmark and audit surfaces at narrow and wide layouts', async ({ page }) => {
     await page.goto('/sandbox/benchmarks');
-    await expect(page.getByText(/benchmark/i).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Benchmark explorer' })).toBeVisible();
     await page.keyboard.press('Tab');
     await expect(page.locator(':focus')).toBeVisible();
     await page.setViewportSize({ width: 375, height: 812 });

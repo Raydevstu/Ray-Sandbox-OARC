@@ -26,6 +26,7 @@ import { pendingTokens } from "@/lib/engine/session-buffer";
 import { SAMPLE_RETAIN_TEXTS } from "@/lib/data/seed";
 import { ContextLayerStack, EvidenceDrawer, MemoryQueryComposer, RetrievalTraceTimeline, type EvidenceState } from "@/components/oarc-v2/evidence-workbench";
 import { MemoryHealthSummary } from "@/components/memory/MemoryHealthSummary";
+import { createRuntimeMemoryClient, type RuntimeMemoryScope } from "@/lib/runtime/memory-client";
 
 type Tab = "retain" | "session" | "browser" | "graph" | "recall" | "reflect" | "observations" | "opinions" | "entities";
 
@@ -34,6 +35,15 @@ export default function MemoryPage() {
   const hydrated = useSandbox((st) => st.hydrated);
   const [tab, setTab] = useState<Tab>("retain");
   const [recallSeed, setRecallSeed] = useState<string | null>(null);
+  const [runtimeScope, setRuntimeScope] = useState<RuntimeMemoryScope | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/auth/session", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) return;
+      const session = await response.json() as Partial<RuntimeMemoryScope>;
+      if (session.tenantId && session.bankId && session.projectId) setRuntimeScope({ tenantId: session.tenantId, bankId: session.bankId, projectId: session.projectId });
+    });
+  }, []);
 
   const bank = s.banks.find((b) => b.id === s.activeBankId)!;
   const facts = useMemo(() => s.facts.filter((f) => f.bankId === s.activeBankId), [s.facts, s.activeBankId]);
@@ -94,13 +104,14 @@ export default function MemoryPage() {
         ]}
       />
 
-      {tab === "retain" && <RetainPanel />}
+      {tab === "retain" && <RetainPanel runtimeScope={runtimeScope} />}
       {tab === "session" && <SessionPanel />}
       {tab === "browser" && (
         <BrowserPanel
           facts={facts}
           onDelete={(id) => s.deleteFact(id)}
           onRecall={(text) => { setRecallSeed(text); setTab("recall"); }}
+          runtimeScope={runtimeScope}
         />
       )}
       {tab === "graph" && (
@@ -108,7 +119,7 @@ export default function MemoryPage() {
           <MemoryGraph facts={facts} links={bankLinks} height={500} />
         </Card>
       )}
-      {tab === "recall" && <RecallPanel facts={facts} links={bankLinks} observations={observations} seedQuery={recallSeed} />}
+      {tab === "recall" && <RecallPanel facts={facts} links={bankLinks} observations={observations} seedQuery={recallSeed} runtimeScope={runtimeScope} />}
       {tab === "reflect" && <ReflectPanel facts={facts} links={bankLinks} observations={observations} opinions={opinions} />}
       {tab === "observations" && <ObservationsPanel />}
       {tab === "opinions" && <OpinionsPanel />}
@@ -141,7 +152,7 @@ function SessionPanel() {
 
 /* ================= Retain ================= */
 
-function RetainPanel() {
+function RetainPanel({ runtimeScope }: { runtimeScope: RuntimeMemoryScope | null }) {
   const s = useSandbox();
   const [text, setText] = useState("");
   const [tags, setTags] = useState("user:alice");
@@ -156,6 +167,7 @@ function RetainPanel() {
   // visual memory state
   const [img, setImg] = useState<{ dataUrl: string; fileName: string } | null>(null);
   const [caption, setCaption] = useState("");
+  const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
 
   /** simulated vision pass — descriptive elements from caption + filename tokens */
@@ -186,10 +198,21 @@ function RetainPanel() {
     image.src = url;
   };
 
-  const doRetain = (content: string) => {
+  const doRetain = async (content: string) => {
     if (!content.trim() && !img) return;
     setBusy(true);
     setResult(null);
+    setRuntimeMessage(null);
+    if (s.ui.runtimeMode === "runtime") {
+      if (!runtimeScope) { setRuntimeMessage("Runtime scope is unavailable; connect an authorized session before retaining."); setBusy(false); return; }
+      const finalContent = [content.trim(), img ? `Image ${img.fileName}: ${caption || "(no caption)"}` : ""].filter(Boolean).join("\n");
+      const response = await createRuntimeMemoryClient().retain({ ...runtimeScope, content: finalContent, idempotencyKey: `memory-ui-${crypto.randomUUID()}` });
+      setRuntimeMessage(response?.ok ? `Canonical retain completed (${response.data?.fact.id ?? "memory"}).` : `Canonical retain ${response?.state ?? "failed"}: ${response?.error ?? "request failed"}${response?.retryable ? " · retryable" : ""}`);
+      setBusy(false);
+      setImg(null);
+      setCaption("");
+      return;
+    }
     setTimeout(() => {
       let finalContent = content;
       let attachment: import("@/lib/types").MemoryAttachment | undefined;
@@ -352,6 +375,7 @@ function RetainPanel() {
               ✓ {result.factCount} facts extracted{result.steeredOut > 0 && <span className="text-warn"> · {result.steeredOut} steered out</span>}
             </span>
           )}
+          {runtimeMessage && <span role="status" className={cn("text-xs font-medium anim-fade-up", runtimeMessage.startsWith("Canonical retain completed") ? "text-ok" : "text-danger")}>{runtimeMessage}</span>}
         </div>
       </Card>
       <Card>
@@ -397,7 +421,7 @@ function RetainPanel() {
 
 /* ================= Browser ================= */
 
-function BrowserPanel({ facts, onDelete, onRecall }: { facts: MemoryFact[]; onDelete: (id: string) => void; onRecall: (text: string) => void }) {
+function BrowserPanel({ facts, onDelete, onRecall, runtimeScope }: { facts: MemoryFact[]; onDelete: (id: string) => void; onRecall: (text: string) => void; runtimeScope: RuntimeMemoryScope | null }) {
   const s = useSandbox();
   const [netFilter, setNetFilter] = useState<Network | "all">("all");
   const [q, setQ] = useState("");
@@ -600,21 +624,28 @@ function BrowserPanel({ facts, onDelete, onRecall }: { facts: MemoryFact[]; onDe
         )}
       </Card>
 
-      {editing && <UpdateDialog fact={editing} onClose={() => setEditing(null)} />}
+      {editing && <UpdateDialog fact={editing} runtimeScope={runtimeScope} onClose={() => setEditing(null)} />}
     </div>
   );
 }
 
 /* ================= Update dialog ================= */
 
-function UpdateDialog({ fact, onClose }: { fact: MemoryFact; onClose: () => void }) {
+function UpdateDialog({ fact, runtimeScope, onClose }: { fact: MemoryFact; runtimeScope: RuntimeMemoryScope | null; onClose: () => void }) {
   const s = useSandbox();
   const [text, setText] = useState(fact.text);
   const [note, setNote] = useState("");
   const [expires, setExpires] = useState(fact.expiresAt ? fact.expiresAt.slice(0, 10) : "");
   const [error, setError] = useState<string | null>(null);
 
-  const save = () => {
+  const save = async () => {
+    if (s.ui.runtimeMode === "runtime") {
+      if (!runtimeScope) { setError("Runtime scope is unavailable; connect an authorized session before correcting memory."); return; }
+      const response = await createRuntimeMemoryClient().correct(fact.id, { ...runtimeScope, claim: text });
+      if (!response?.ok) { setError(`${response?.state ?? "failed"}: ${response?.error ?? "correction failed"}${response?.retryable ? " · retryable" : ""}`); return; }
+      onClose();
+      return;
+    }
     const r = s.updateFact(fact.id, { text, note: note || "manual update" });
     if (!r.ok) {
       setError(r.error ?? "Update failed");
@@ -742,11 +773,13 @@ function RecallPanel({
   links,
   observations,
   seedQuery,
+  runtimeScope,
 }: {
   facts: MemoryFact[];
   links: import("@/lib/types").GraphLink[];
   observations: import("@/lib/types").Observation[];
   seedQuery?: string | null;
+  runtimeScope: RuntimeMemoryScope | null;
 }) {
   const s = useSandbox();
   const [query, setQuery] = useState(seedQuery ?? "What does Alice prefer for frontend work?");
@@ -756,15 +789,26 @@ function RecallPanel({
   const [showFilters, setShowFilters] = useState(false);
   const [evidenceState, setEvidenceState] = useState<EvidenceState>("ready");
   const [selectedEvidence, setSelectedEvidence] = useState<MemoryFact | null>(null);
+  const [runtimeResult, setRuntimeResult] = useState<{ facts: readonly { id: string; claim: string; confidence: number; evidenceIds: readonly string[] }[]; traceId: string; state: string } | null>(null);
 
   useEffect(() => {
     if (seedQuery) setQuery(seedQuery);
   }, [seedQuery]);
 
-  const run = () => {
+  const run = async () => {
     if (!query.trim()) return;
     setBusy(true);
     setEvidenceState("loading");
+    setRuntimeResult(null);
+    if (s.ui.runtimeMode === "runtime") {
+      if (!runtimeScope) { setEvidenceState("offline"); setBusy(false); return; }
+      const response = await createRuntimeMemoryClient().recall({ ...runtimeScope, query });
+      if (!response?.ok || !response.data) { setEvidenceState(response?.state === "unavailable" ? "offline" : "error"); setBusy(false); return; }
+      setRuntimeResult({ facts: response.data.facts, traceId: response.data.traceId, state: response.state ?? "healthy" });
+      setEvidenceState(response.data.facts.length ? "ready" : "empty");
+      setBusy(false);
+      return;
+    }
     setTimeout(() => {
       const t = recall({
         query,
@@ -859,6 +903,7 @@ function RecallPanel({
         )}
       </Card>
       <div className="grid xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,1fr)] gap-4">
+        {runtimeResult && <Card><CardHeader title="Canonical retrieval" subtitle={`PostgreSQL-backed result · trace ${runtimeResult.traceId}`} icon={<Database size={15} />} /><div className="space-y-2">{runtimeResult.facts.map((fact) => <div key={fact.id} className="rounded-lg border border-border-soft bg-surface-2 p-3"><p className="text-sm text-ink">{fact.claim}</p><p className="text-[10px] text-faint mt-1">confidence {Math.round(fact.confidence * 100)}% · evidence {fact.evidenceIds.length}</p></div>)}{!runtimeResult.facts.length && <Empty title="No canonical memories found" hint="The server returned a healthy empty result for this scope." />}</div></Card>}
         <RetrievalTraceTimeline trace={trace} state={evidenceState} onCitation={setSelectedEvidence} />
         <ContextLayerStack trace={trace} />
       </div>

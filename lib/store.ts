@@ -237,6 +237,7 @@ export interface SandboxState {
   bumpAccess: (factIds: string[]) => void;
   recallWithFilters: (query: string, filters: FilterNode | null) => import("@/lib/types").RecallTrace;
   runEval: (name: string, setQuestions?: EvalQuestion[]) => EvalRun;
+  replaceEvalRuns: (runs: EvalRun[]) => void;
   importEvalSet: (json: string) => { ok: boolean; error?: string; name?: string };
   deleteEvalRun: (id: string) => void;
   addWebhook: (url: string, events: WebhookEvent[]) => void;
@@ -761,6 +762,8 @@ export const useSandbox = create<SandboxState>()(
         });
         return run;
       },
+
+      replaceEvalRuns: (runs) => set({ evalRuns: runs.slice(0, 40) }),
 
       importEvalSet: (json) => {
         try {

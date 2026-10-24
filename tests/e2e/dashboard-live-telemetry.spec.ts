@@ -2,6 +2,11 @@ import { expect, test } from "@playwright/test";
 import { getAxeResults, injectAxe } from "axe-playwright";
 
 test("dashboard operations timeline exposes live telemetry controls without replacing the dashboard", async ({ page }) => {
+  await page.setExtraHTTPHeaders({
+    "x-dev-bank-id": "staging-bank",
+    "x-dev-project-id": "staging-project",
+    "x-dev-allowed-project-ids": "staging-project",
+  });
   for (const width of [375, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto("/sandbox");
@@ -16,7 +21,7 @@ test("dashboard operations timeline exposes live telemetry controls without repl
     await timeline.getByRole("button", { name: "Table" }).click();
     await expect(timeline.getByRole("table", { name: "Telemetry values by timestamp" })).toBeVisible();
 
-    const worldNetwork = page.getByRole("button", { name: /World 12 60%/ });
+    const worldNetwork = page.getByLabel(/^World \d+ \d+%$/);
     await worldNetwork.focus();
     await page.keyboard.press("Enter");
     await expect(worldNetwork).toHaveAttribute("aria-pressed", "true");

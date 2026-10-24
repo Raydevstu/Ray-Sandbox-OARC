@@ -11,8 +11,10 @@ export const developmentPrincipal = (config: RuntimeConfig, request: Request): P
   if (!config.allowDevelopmentPrincipal) throw new Error('development principal is disabled');
   const subject = request.headers.get('x-dev-subject');
   const tenantId = request.headers.get('x-dev-tenant-id');
+  const bankId = request.headers.get('x-dev-bank-id') ?? undefined;
+  const projectId = request.headers.get('x-dev-project-id') ?? undefined;
   const scopes = request.headers.get('x-dev-scopes')?.split(/\s+/).filter(Boolean) as Permission[] | undefined;
   const allowedProjectIds = request.headers.get('x-dev-allowed-project-ids')?.split(/\s*,\s*/).map((projectId) => projectId.trim()).filter(Boolean) ?? [];
   if (!subject || !tenantId || !scopes?.length) throw new Error('development principal requires subject, tenant, and scopes');
-  return { subject, tenantId, scopes: new Set(scopes), allowedProjectIds, source: 'dev' };
+  return { subject, tenantId, bankId, projectId, scopes: new Set(scopes), allowedProjectIds, source: 'dev' };
 };

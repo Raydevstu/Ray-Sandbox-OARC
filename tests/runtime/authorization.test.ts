@@ -12,6 +12,10 @@ describe('runtime authorization', () => {
   afterEach(() => vi.unstubAllGlobals());
   it('rejects missing credentials', async () => { await expect(authenticateRequest(new Request('http://local'), config)).rejects.toThrow('missing credentials'); });
   it('requires explicit development principal fields', async () => { await expect(authenticateRequest(new Request('http://local', { headers: { 'x-dev-subject': 's' } }), config)).rejects.toThrow(); });
+  it('enforces the development project header', async () => {
+    const principal = await authenticateRequest(new Request('http://local', { headers: { 'x-dev-subject': 's', 'x-dev-tenant-id': 't1', 'x-dev-project-id': 'project-a', 'x-dev-scopes': 'memory:read' } }), config);
+    expect(() => authorize(principal, 'memory:read', { tenantId: 't1', bankId: 'b1', projectId: 'project-b' })).toThrow('scope does not match principal');
+  });
   it('enforces tenant scope and permission', () => {
     const principal = { subject: 's', tenantId: 't1', scopes: new Set(['memory:read' as const]), allowedProjectIds: ['project-a'], source: 'dev' as const };
     expect(() => authorize(principal, 'memory:read', scope)).not.toThrow();

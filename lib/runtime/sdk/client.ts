@@ -1,6 +1,6 @@
-import type { OperationalState } from '../operational-state';
+import type { WorkflowEnvelope } from '../contracts';
 
-export type ApiEnvelope<T> = Readonly<{ ok: boolean; requestId: string; data?: T; error?: string; retryable?: boolean; state?: OperationalState }>;
+export type ApiEnvelope<T> = WorkflowEnvelope<T>;
 export type MemoryApiTransport = Readonly<{ request(path: string, init: RequestInit): Promise<ApiEnvelope<unknown>> }>;
 export type MemoryApiClient = Readonly<{
   retain(input: Record<string, unknown>): Promise<ApiEnvelope<unknown>>;

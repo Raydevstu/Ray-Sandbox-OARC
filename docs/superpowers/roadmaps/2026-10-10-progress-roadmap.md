@@ -39,6 +39,12 @@ Status meanings remain strict: `IMPLEMENTED` is source code, `TESTED` is automat
 
 The canonical execution blueprint is now [2026-10-10 Apex Evidence-Driven Control Plane Blueprint](../blueprints/2026-10-10-apex-evidence-driven-control-plane-blueprint.md). The earlier competitive-upgrade blueprint remains historical evidence and architecture context.
 
+## 2026-10-23 Phase 0 runtime truth checkpoint
+
+`IMPLEMENTED / TESTED`: `/api/runtime-truth` now exposes a no-store, non-secret runtime identity contract containing environment, authentication mode, canonical-store status, build identifier, and evidence boundary. The sandbox footer consumes this contract and no longer claims only `Local UI ready` without identifying runtime truth. Dashboard queue charts now omit unmeasured series instead of coercing unavailable state to zero, and the operations badge follows the actual `live`, `stale`, or `disconnected` state.
+
+Focused runtime tests and typecheck pass. `LOCALLY VERIFIED` browser evidence is pending against the intended current runtime; the existing `3028` process is an older instance and the documented `3030` development process was not running during this checkpoint. Production evidence remains unclaimed.
+
 ## Ordered next slice — Slice 1: Enterprise Evidence Integrity Baseline
 
 1. Run a meaningful sustained SLO workload and preserve retain/recall p50, p95, p99, worker completion, queue delay, and failure measurements.
@@ -385,3 +391,30 @@ The recommended next action is to connect correction proposals to an authenticat
 ## Next safe boundary
 
 Confirm the saved Hindsight key is active for the Hindsight Cloud project/API endpoint and has not been revoked or restricted, then rerun the unchanged fixed corpus. Do not paste or print the key.
+
+## 2026-10-23 Phase 1/2 vertical slice checkpoint
+
+`IMPLEMENTED / TESTED`: onboarding now describes a safe-sample-to-real-project path, and retrieval traces expose policy outcome, freshness, exclusions, and graph-hop count. The trace API returns a redacted share URL; `/api/project-memory/trace/share` returns metadata-only, hashed identifiers without memory content or query text. Existing review and replay routes remain the governed correction path.
+
+`PARTIAL`: this establishes the contract boundary, not the complete guided workflow. Browser verification, durable cross-worker telemetry aggregation, data-quality panels, and measured recall cost attribution remain pending.
+
+## 2026-10-23 Developer Workbench checkpoint
+
+`IMPLEMENTED / TESTED`: `/sandbox/developer` now provides one explicit local golden-path workbench with safe sample-project initialization, an explicit switch-to-real-project boundary, workflow progress state, ingest, retain, recall, correction, replay, and evaluation controls. `developer-workflow.ts` supplies the stable `workflowRunId` and step-state contract. Focused workflow tests and typecheck pass.
+
+`PARTIAL`: the current workbench carries `workflowRunId` through its local UI metadata, but server-side durable propagation through every existing API and browser acceptance coverage at all required widths remain the next implementation boundary.
+
+## 2026-10-23 Workflow durability checkpoint
+
+`IMPLEMENTED / TESTED`: recall and trace now echo workflow correlation, PostgreSQL has an additive `workflow_runs` migration with scoped repository upsert/read methods, and `/api/v1/memory/workflow` exposes authenticated durable workflow state with explicit unavailable/unauthorized/empty states. The developer workbench now attempts to persist workflow progress through a typed client and surfaces server unavailability rather than silently claiming durable success. Typecheck and focused migration/repository/API tests pass.
+
+`PARTIAL`: retain, review, replay, and evaluation still persist their individual records but do not yet atomically update `workflow_runs`; the workbench's ingest/retain/recall actions still use the local engine for memory data, and full authenticated responsive browser verification remains pending.
+
+## 2026-10-23 Golden-path durability Steps 2-5 checkpoint
+
+- `IMPLEMENTED`: evaluation now uses `saveEvaluationAtomic(...)` to persist the evaluation run, `EvaluationCompleted` event, outbox record, and final workflow state in one PostgreSQL transaction. Replay no longer performs a best-effort workflow write before its atomic bundle transaction.
+- `IMPLEMENTED / TESTED`: the test repository enforces evaluation scope and idempotency; focused repository/API tests passed `19/19`, and TypeScript validation passed.
+- `IMPLEMENTED`: evaluation and replay use the shared API envelope. The workflow client now preserves request, workflow, trace, and retry metadata, and the developer workbench reads persisted workflow state on refresh and displays server state, request ID, and event ID.
+- `PARTIAL`: correction, retain, recall, trace, and workflow routes still contain legacy response construction; full metadata display for revision IDs, replay comparison, and evaluation before/after metrics remains pending.
+- `BROWSER VERIFIED`: not claimed. Authenticated 375/768/1440 journeys, keyboard/reduced-motion checks, accessibility checks, and unavailable/degraded/unauthorized/replay-failure/refresh scenarios remain pending.
+- `BENCHMARK VERIFIED`: not claimed for this boundary. `PRODUCTION VERIFIED`: false. External deployment, connector authorization, and provider configuration remain out of scope.

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
-    return NextResponse.json({ subject: principal.subject, tenantId: principal.tenantId, permissions: [...principal.scopes].sort(), allowedProjectIds: [...principal.allowedProjectIds] }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ subject: principal.subject, tenantId: principal.tenantId, bankId: principal.bankId, projectId: principal.projectId, permissions: [...principal.scopes].sort(), allowedProjectIds: [...principal.allowedProjectIds] }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ error: 'session unavailable' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
   }

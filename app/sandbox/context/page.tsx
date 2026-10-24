@@ -3,13 +3,14 @@
 /* Context Tuning — every recall/consolidation knob exposed by the
    docs, wired to the live engine, with presets and A/B latency preview. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlaskConical, Info, Play, RotateCcw, SlidersHorizontal, Zap } from "lucide-react";
 import { Badge, Button, Card, CardHeader, Input, Progress, Segmented, Slider, Textarea, Toggle } from "@/components/ui";
 import { recall, recallBudget } from "@/lib/engine/recall";
 import { DEFAULT_RECALL_SETTINGS, useSandbox } from "@/lib/store";
 import { cn, fmtMs } from "@/lib/utils";
 import type { Budget } from "@/lib/types";
+import { postPhase3Step } from "@/lib/runtime/phase3-client";
 
 const PRESETS: { name: string; budget: Budget; maxTokens: number; why: string }[] = [
   { name: "Chatbot replies", budget: "low", maxTokens: 2048, why: "Fast responses, focused context" },
@@ -24,6 +25,10 @@ export default function ContextPage() {
   const r = s.recallSettings;
   const [testQuery, setTestQuery] = useState("What did Alice do in March 2026?");
   const [preview, setPreview] = useState<{ latencyMs: number; selected: number; tokens: number; budget: number } | null>(null);
+  const [runtimeScope, setRuntimeScope] = useState<{ tenantId: string; bankId: string; projectId: string; workflowRunId: string } | null>(null);
+  const [configVersion, setConfigVersion] = useState(1);
+  const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null);
+  useEffect(() => { void fetch('/api/auth/session', { cache: 'no-store' }).then(async (res) => { if (!res.ok) return; const x = await res.json(); if (!x.tenantId || !x.bankId || !x.projectId) return; const scope = { tenantId: x.tenantId, bankId: x.bankId, projectId: x.projectId, workflowRunId: `context-${crypto.randomUUID()}` }; setRuntimeScope(scope); const query = new URLSearchParams({ tenantId: x.tenantId, bankId: x.bankId, projectId: x.projectId, configId: 'context-default' }); const saved = await fetch(`/api/v1/context?${query}`, { cache: 'no-store' }); if (saved.ok) { const body = await saved.json(); if (body.data?.settings) s.setRecallSettings(body.data.settings); if (body.data?.version) setConfigVersion(Number(body.data.version) + 1); } }); }, []);
 
   const facts = useMemo(() => s.facts.filter((f) => f.bankId === s.activeBankId), [s.facts, s.activeBankId]);
   const observations = useMemo(() => s.observations.filter((o) => o.bankId === s.activeBankId), [s.observations, s.activeBankId]);
@@ -33,6 +38,10 @@ export default function ContextPage() {
     setPreview({ latencyMs: t.latencyMs, selected: t.selected.length, tokens: t.tokensUsed, budget: t.recallBudget });
     s.logEvent({ app: "context", op: "recall", message: `Tuning preview: ${t.selected.length} memories, ${t.tokensUsed} tok @ ${fmtMs(t.latencyMs)}`, latencyMs: Math.round(t.latencyMs) });
     s.recordRun({ context: 1 });
+    if (s.ui.runtimeMode === 'runtime') {
+      if (!runtimeScope) { setRuntimeMessage('Runtime scope unavailable; tuning preview was not persisted.'); return; }
+      void fetch('/api/v1/context', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tenantId: runtimeScope.tenantId, bankId: runtimeScope.bankId, projectId: runtimeScope.projectId, configId: 'context-default', version: configVersion, settings: r }) }).then(async (saved) => { if (!saved.ok) throw new Error((await saved.json()).error ?? 'Context persistence failed'); setConfigVersion((version) => version + 1); return postPhase3Step('context', runtimeScope, { settings: r, query: testQuery }); }).then((response) => setRuntimeMessage(response.ok ? 'Context tuning persisted.' : (response.error ?? 'Context workflow failed'))).catch((error) => setRuntimeMessage(error instanceof Error ? error.message : 'Context persistence failed'));
+    }
   };
 
   if (!hydrated) return <Card><p className="text-xs text-muted p-4">Restoring state…</p></Card>;
@@ -284,6 +293,7 @@ export default function ContextPage() {
           <Button variant="primary" className="w-full" onClick={runPreview}>
             <Play size={13} /> Run with these settings
           </Button>
+          {runtimeMessage && <p className="mt-2 text-xs text-muted" role="status">{runtimeMessage}</p>}
 
           {preview && (
             <div className="mt-4 space-y-3 anim-fade-up">

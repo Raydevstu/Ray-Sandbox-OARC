@@ -11,9 +11,9 @@ export const updateMemory = async (scope: MemoryScope & Readonly<{ projectId?: s
   const idempotencyKey = `memory-correction:${scope.tenantId}:${scope.bankId}:${factId}:${revision.revision}:${normalized}`;
   if (await repository.getByIdempotencyKey(scope, idempotencyKey)) return revision;
   const event = createEventEnvelope({ ...scope, type: 'MemoryCorrected', occurredAt: revision.createdAt, idempotencyKey, payload: { factId, revision, supersedesRevision: current.revision } });
-  await repository.appendRevision(revision);
-  await repository.appendEvent(event);
-  await repository.appendOutbox(createOutboxRecord(event, idempotencyKey));
+  const workflowRunId = (scope as { workflowRunId?: string }).workflowRunId;
+  const workflow = workflowRunId ? { tenantId: scope.tenantId, bankId: scope.bankId, workflowRunId, projectId: scope.projectId ?? 'unknown', mode: 'real' as const, currentStep: 'correct', completedSteps: ['correct'], status: 'active' as const, createdAt: revision.createdAt, updatedAt: revision.createdAt, lastEventId: event.id } : undefined;
+  await repository.correctMemoryAtomic(revision, event, createOutboxRecord(event, idempotencyKey), workflow);
   return revision;
 };
 

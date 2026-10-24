@@ -20,6 +20,9 @@ services:
       - ./db/migrations/0010_evaluation_replay.sql:/docker-entrypoint-initdb.d/09-evaluation-replay.sql:ro
       - ./db/migrations/0011_evaluation_corrections.sql:/docker-entrypoint-initdb.d/10-evaluation-corrections.sql:ro
       - ./db/migrations/0012_fact_project_scope.sql:/docker-entrypoint-initdb.d/11-fact-project-scope.sql:ro
+      - ./db/migrations/0013_workflow_runs.sql:/docker-entrypoint-initdb.d/12-workflow-runs.sql:ro
+      - ./db/migrations/0015_context_configs.sql:/docker-entrypoint-initdb.d/13-context-configs.sql:ro
+      - ./db/migrations/0016_phase3_domain_records.sql:/docker-entrypoint-initdb.d/14-phase3-domain-records.sql:ro
       - ./db/staging/seed-scope.sql:/docker-entrypoint-initdb.d/99-seed-scope.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U staging -d ray_sandbox_staging"]

@@ -5,7 +5,7 @@ test('dashboard requires an authorized session before showing runtime data', asy
   await page.context().clearCookies();
   for (const width of [375, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto('http://127.0.0.1:3030/sandbox');
+    await page.goto('/sandbox');
 
     await expect(page.getByText('Project runtime telemetry')).toBeVisible();
     await expect(page.getByRole('status')).toHaveText('Disconnected');

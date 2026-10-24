@@ -8,6 +8,10 @@ const benchmarkMigration = readFileSync(new URL('../../db/migrations/0006_benchm
 const graphMigration = readFileSync(new URL('../../db/migrations/0009_typed_graph.sql', import.meta.url), 'utf8');
 const evaluationMigration = readFileSync(new URL('../../db/migrations/0010_evaluation_replay.sql', import.meta.url), 'utf8');
 const correctionMigration = readFileSync(new URL('../../db/migrations/0011_evaluation_corrections.sql', import.meta.url), 'utf8');
+const promptMigration = readFileSync(new URL('../../db/migrations/0014_prompt_versions.sql', import.meta.url), 'utf8');
+const workflowMigration = readFileSync(new URL('../../db/migrations/0013_workflow_runs.sql', import.meta.url), 'utf8');
+const contextMigration = readFileSync(new URL('../../db/migrations/0015_context_configs.sql', import.meta.url), 'utf8');
+const stagingCompose = readFileSync(new URL('../../docker-compose.staging.yml', import.meta.url), 'utf8');
 
 describe('canonical migration integrity', () => {
   it('enforces scoped bank, fact, evidence, and provenance foreign keys', () => {
@@ -67,5 +71,34 @@ describe('evaluation and replay migration contract', () => {
     expect(evaluationMigration).toContain('CREATE TABLE IF NOT EXISTS project_replay_comparisons');
     expect(correctionMigration).toContain('CREATE TABLE IF NOT EXISTS project_evaluation_corrections');
     expect(correctionMigration).toContain('CREATE TABLE IF NOT EXISTS project_workflow_replays');
+  });
+});
+
+describe('prompt migration contract', () => {
+  it('keeps prompt versions scoped and append-versioned', () => {
+    expect(promptMigration).toContain('CREATE TABLE IF NOT EXISTS prompt_versions');
+    expect(promptMigration).toContain('PRIMARY KEY (tenant_id, bank_id, project_id, prompt_id, version)');
+  });
+});
+
+describe('workflow run migration contract', () => {
+  it('defines scoped durable workflow correlation state', () => {
+    expect(workflowMigration).toContain('CREATE TABLE IF NOT EXISTS workflow_runs');
+    expect(workflowMigration).toContain('PRIMARY KEY (tenant_id, bank_id, workflow_run_id)');
+    expect(workflowMigration).toContain('completed_steps JSONB');
+    expect(workflowMigration).toContain('workflow_runs_project_updated_idx');
+  });
+
+  it('mounts workflow runs migration into staging PostgreSQL', () => {
+    expect(stagingCompose).toContain('./db/migrations/0013_workflow_runs.sql:/docker-entrypoint-initdb.d/12-workflow-runs.sql:ro');
+  });
+});
+
+describe('context config migration contract', () => {
+  it('defines versioned project-scoped settings and mounts the migration', () => {
+    expect(contextMigration).toContain('CREATE TABLE IF NOT EXISTS context_configs');
+    expect(contextMigration).toContain('PRIMARY KEY (tenant_id, bank_id, project_id, config_id)');
+    expect(contextMigration).toContain('settings JSONB NOT NULL');
+    expect(stagingCompose).toContain('./db/migrations/0015_context_configs.sql:/docker-entrypoint-initdb.d/13-context-configs.sql:ro');
   });
 });

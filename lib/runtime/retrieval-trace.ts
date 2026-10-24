@@ -17,6 +17,10 @@ export type RetrievalTrace = Readonly<{
   query: string;
   items: readonly RetrievalTraceItem[];
   gaps: readonly string[];
+  policyOutcome?: 'allowed' | 'degraded';
+  freshness?: 'fresh' | 'stale' | 'unknown';
+  exclusions?: readonly string[];
+  graphHops?: number;
 }>;
 
 const terms = (value: string): readonly string[] => [...new Set(value.toLowerCase().match(/[a-z0-9]+/g) ?? [])];
@@ -31,5 +35,7 @@ export const buildRetrievalTrace = (records: readonly ProjectMemoryRecord[], que
     if (!score) return [];
     return [{ recordId: record.id, score, confidence: record.confidence, evidenceReferences: record.evidence.map((item) => item.reference), rationale: `selected because ${Math.round(score * 100)}% of query terms matched`, createdAt: record.createdAt, updatedAt: record.updatedAt, status: record.status, source: record.source }];
   }).sort((a, b) => b.score - a.score || b.confidence - a.confidence || a.recordId.localeCompare(b.recordId));
-  return { traceId, query, items, gaps };
+  const exclusions = records.filter((record) => !items.some((item) => item.recordId === record.id)).map((record) => `${record.id}: no query-term match or source evidence`);
+  const freshness = items.length === 0 ? 'unknown' : items.some((item) => Date.now() - Date.parse(item.updatedAt) > 1000 * 60 * 60 * 24 * 30) ? 'stale' : 'fresh';
+  return { traceId, query, items, gaps, policyOutcome: gaps.length ? 'degraded' : 'allowed', freshness, exclusions, graphHops: 0 };
 };

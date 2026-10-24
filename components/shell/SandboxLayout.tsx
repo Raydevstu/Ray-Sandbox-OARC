@@ -84,9 +84,9 @@ export default function SandboxLayout({ children }: { children: React.ReactNode 
 
       {/* ============ Sidebar ============ */}
       <aside
+        data-collapsed={collapsed ? "true" : "false"}
         className={cn(
-          "fixed inset-y-0 left-0 z-40 hidden border-r border-border-soft bg-bg-soft md:flex md:flex-col transition-all duration-200",
-          collapsed ? "w-16" : "w-60"
+          "sandbox-sidebar fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-border-soft bg-bg-soft md:flex transition-all duration-200"
         )}
       >
         <div className={cn("h-14 flex items-center border-b border-border-soft px-3 gap-2", collapsed && "justify-center px-0")}>
@@ -175,7 +175,7 @@ export default function SandboxLayout({ children }: { children: React.ReactNode 
       </aside>
 
       {/* ============ Main ============ */}
-      <div className={cn("flex-1 flex flex-col min-w-0 transition-all duration-200", collapsed ? "ml-0 md:ml-16" : "ml-0 md:ml-60")}>
+      <div data-collapsed={collapsed ? "true" : "false"} className="sandbox-main flex-1 flex flex-col min-w-0 transition-all duration-200" style={{ paddingLeft: collapsed ? "var(--layout-rail-collapsed)" : "var(--layout-rail)" }}>
         <ContextBar bankId={activeBankId} banks={banks} onBankChange={setActiveBank} onSearch={() => setPaletteOpen(true)} />
 
         <main className="oarc-main-canvas">{current && <h1 className="oarc-route-title"><current.icon size={15} aria-hidden="true" />{current.label}</h1>}{children}</main>

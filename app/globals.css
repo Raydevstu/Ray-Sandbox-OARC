@@ -154,6 +154,13 @@ html, body {
   gap: 12px; padding: 8px 20px; border-bottom: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--surface) 78%, transparent); backdrop-filter: blur(14px);
 }
+.sandbox-sidebar { width: var(--layout-rail); }
+.sandbox-main { box-sizing: border-box; padding-left: 0; }
+.sandbox-sidebar[data-collapsed="true"] { width: var(--layout-rail-collapsed); }
+@media (min-width: 768px) {
+  .sandbox-main { padding-left: var(--layout-rail); }
+  .sandbox-main[data-collapsed="true"] { padding-left: var(--layout-rail-collapsed); }
+}
 .oarc-main-canvas { flex: 1; min-width: 0; width: 100%; max-width: var(--layout-content-max); margin: 0 auto; padding: 20px; }
 .oarc-route-title { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; color: var(--text); font-size: 14px; font-weight: 600; }
 .oarc-status-line { display: flex; align-items: center; gap: 12px; min-height: 32px; padding: 0 20px; color: var(--faint); font-size: 11px; border-top: 1px solid var(--border-soft); }
@@ -229,6 +236,7 @@ html, body {
 
 @media (max-width: 1023px) { .oarc-responsive-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 767px) {
+  .sandbox-main { padding-left: 0 !important; }
   .oarc-context-bar { padding-inline: 12px; }
   .oarc-main-canvas { padding: 16px 12px; }
   .oarc-responsive-grid { grid-template-columns: minmax(0, 1fr); }

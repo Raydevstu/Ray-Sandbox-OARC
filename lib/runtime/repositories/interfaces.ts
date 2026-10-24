@@ -1,4 +1,4 @@
-import type { ConversationEvent, EntitySummary, EventRecord, EvidenceRecord, MemoryFactRevision, MemoryScope, OutboxRecord, ProjectEvent, ProjectMemoryRecord } from '../contracts';
+import type { ContextConfig, ConversationEvent, EntitySummary, EventRecord, EvidenceRecord, MemoryFactRevision, MemoryScope, OutboxRecord, Phase3DomainRecord, ProjectEvent, ProjectMemoryRecord, PromptVersion, WorkflowRun } from '../contracts';
 import type { Checkpoint } from '../jobs/checkpoints';
 import type { JobRecord } from '../jobs/queue';
 import type { ProjectJob } from '../project-worker';
@@ -13,7 +13,8 @@ export type Projection = MemoryScope & Readonly<{ id: string; value: Readonly<Re
 export type Snapshot = MemoryScope & Readonly<{ id: string; createdAt: string }>;
 export type MemoryPolicyRecord = MemoryScope & Readonly<{ projectId: string; policy: MemoryPolicy }>;
 export interface CanonicalRepository {
-  retainMemoryAtomic(evidence: EvidenceRecord, fact: MemoryFactRevision, event: EventRecord, outbox: OutboxRecord): Promise<void>;
+  retainMemoryAtomic(evidence: EvidenceRecord, fact: MemoryFactRevision, event: EventRecord, outbox: OutboxRecord, workflow?: WorkflowRun): Promise<void>;
+  correctMemoryAtomic(revision: MemoryFactRevision, event: EventRecord, outbox: OutboxRecord, workflow?: WorkflowRun): Promise<void>;
   appendEvidence(record: EvidenceRecord): Promise<void>;
   appendRevision(record: MemoryFactRevision): Promise<void>;
   findFacts(scope: MemoryScope & Readonly<{ projectId?: string }>): Promise<readonly MemoryFactRevision[]>;
@@ -44,15 +45,25 @@ export interface CanonicalRepository {
   saveBenchmarkRun(scope: MemoryScope, projectId: string, run: ControlledBenchmarkRun): Promise<void>;
   listBenchmarkRuns(scope: MemoryScope, projectId: string, limit: number): Promise<readonly ControlledBenchmarkRun[]>;
   saveEvaluationRun(scope: MemoryScope, projectId: string, run: EvaluationRun): Promise<void>;
+  saveEvaluationAtomic(scope: MemoryScope, projectId: string, run: EvaluationRun, event: EventRecord, outbox: OutboxRecord, workflow?: WorkflowRun): Promise<void>;
   listEvaluationRuns(scope: MemoryScope, projectId: string, limit: number): Promise<readonly EvaluationRun[]>;
   saveReplayComparison(scope: MemoryScope, comparison: ReplayComparison): Promise<void>;
   listReplayComparisons(scope: MemoryScope, projectId: string, limit: number): Promise<readonly ReplayComparison[]>;
   saveEvaluationCorrection(scope: MemoryScope, proposal: EvaluationCorrectionProposal): Promise<void>;
   listEvaluationCorrections(scope: MemoryScope, projectId: string, limit: number): Promise<readonly EvaluationCorrectionProposal[]>;
   saveWorkflowReplay(scope: MemoryScope, replay: WorkflowReplay): Promise<void>;
+  saveEvaluationBundleAtomic(scope: MemoryScope, projectId: string, baseline: EvaluationRun, replay: EvaluationRun, proposal: EvaluationCorrectionProposal, comparison: ReplayComparison, workflow: WorkflowReplay, run: WorkflowRun): Promise<void>;
   listWorkflowReplays(scope: MemoryScope, projectId: string, limit: number): Promise<readonly WorkflowReplay[]>;
+  upsertWorkflowRun(run: WorkflowRun): Promise<void>;
+  getWorkflowRun(scope: MemoryScope, workflowRunId: string): Promise<WorkflowRun | undefined>;
   saveMemoryPolicy(record: MemoryPolicyRecord): Promise<void>;
   listMemoryPolicies(scope: MemoryScope, projectId: string, limit: number): Promise<readonly MemoryPolicyRecord[]>;
+  savePromptVersion(version: PromptVersion): Promise<void>;
+  listPromptVersions(scope: MemoryScope, projectId: string, promptId: string, limit: number): Promise<readonly PromptVersion[]>;
+  saveContextConfig(config: ContextConfig): Promise<void>;
+  getContextConfig(scope: MemoryScope, projectId: string, configId: string): Promise<ContextConfig | undefined>;
+  savePhase3DomainRecord(record: Phase3DomainRecord): Promise<void>;
+  listPhase3DomainRecords(scope: MemoryScope, projectId: string, kind: Phase3DomainRecord['kind'], limit: number): Promise<readonly Phase3DomainRecord[]>;
   saveGraphEntity(scope: MemoryScope, entity: GraphEntity): Promise<void>;
   saveGraphAlias(scope: MemoryScope, entityId: string, alias: string): Promise<void>;
   saveGraphEdge(scope: MemoryScope, edge: GraphEdge): Promise<void>;

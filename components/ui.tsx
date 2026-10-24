@@ -268,6 +268,7 @@ export function Slider({
       <input
         type="range"
         className="w-full"
+        aria-label={typeof label === "string" ? label : undefined}
         min={min}
         max={max}
         step={step}

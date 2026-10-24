@@ -4,7 +4,7 @@
    agent maintains a structured memory bank with CRUD tools, core
    memory evolves, and Ledger-QA style episodes score the result. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen, BrainCircuit, GraduationCap, Play, Plus, RefreshCw, Trash2, Pencil,
   Terminal, Trophy, Wallet,
@@ -14,6 +14,7 @@ import { LineChart } from "@/components/charts";
 import { useSandbox } from "@/lib/store";
 import { cn, rng, uid } from "@/lib/utils";
 import type { LearningToolCall } from "@/lib/types";
+import { postPhase3Step } from "@/lib/runtime/phase3-client";
 
 const SAMPLE_CHUNKS: { date: string; dialogue: string; transactions: { category: string; scene: string; amount: number }[] }[] = [
   {
@@ -63,6 +64,9 @@ export default function LearningPage() {
   const s = useSandbox();
   const hydrated = useSandbox((st) => st.hydrated);
   const [tab, setTab] = useState<Tab>("loop");
+  const [runtimeScope, setRuntimeScope] = useState<{ tenantId: string; bankId: string; projectId: string; workflowRunId: string } | null>(null);
+  const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null);
+  useEffect(() => { void fetch('/api/auth/session', { cache: 'no-store' }).then(async (res) => { if (!res.ok) return; const x = await res.json(); if (x.tenantId && x.bankId && x.projectId) setRuntimeScope({ tenantId: x.tenantId, bankId: x.bankId, projectId: x.projectId, workflowRunId: `learning-${crypto.randomUUID()}` }); }); }, []);
   const L = s.learning;
 
   const nextChunkIdx = L.processedChunks % SAMPLE_CHUNKS.length;
@@ -110,9 +114,10 @@ export default function LearningPage() {
               </div>
               <p className="text-[12.5px] text-muted leading-relaxed whitespace-pre-wrap">{SAMPLE_CHUNKS[nextChunkIdx].dialogue}</p>
             </div>
-            <Button variant="primary" className="w-full" onClick={() => runEpisode(s, SAMPLE_CHUNKS[nextChunkIdx])}>
+            <Button variant="primary" className="w-full" onClick={() => { runEpisode(s, SAMPLE_CHUNKS[nextChunkIdx]); if (s.ui.runtimeMode === 'runtime') { if (!runtimeScope) setRuntimeMessage('Runtime scope unavailable; learning episode was not persisted.'); else { const episode = useSandbox.getState().learning.episodes.at(-1); void fetch('/api/v1/workflow/domain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...runtimeScope, kind: 'learning_episode', recordId: episode?.id ?? `episode-${Date.now()}`, payload: episode ?? { chunk: SAMPLE_CHUNKS[nextChunkIdx].dialogue.slice(0, 200) } }) }).then(async (response) => { const body = await response.json(); setRuntimeMessage(body.ok ? 'Learning episode persisted.' : (body.error ?? 'Learning persistence failed')); }); } } }}>
               <Play size={14} /> Process chunk → maintain memory → score QA
             </Button>
+            {runtimeMessage && <p className="mt-2 text-xs text-muted" role="status">{runtimeMessage}</p>}
 
             {L.episodes.at(-1) && (
               <div className="mt-4 rounded-xl border border-accent-border/40 bg-accent-soft p-3.5 anim-fade-up">
