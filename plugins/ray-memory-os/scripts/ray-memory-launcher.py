@@ -14,7 +14,7 @@ if not (Path(__file__).resolve().parent / "ray_memory_os.py").exists():
 
 def diagnostic_log(message):
     try:
-        root = Path(os.environ.get("LOCALAPPDATA") or (Path.home() / "AppData" / "Local")) / "RayMemory"
+        root = Path(os.environ.get("PLUGIN_DATA") or (Path.home() / "AppData" / "Local")) / "RayMemory"
         root.mkdir(parents=True, exist_ok=True)
         with (root / "hook.log").open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(message, sort_keys=True) + "\n")
