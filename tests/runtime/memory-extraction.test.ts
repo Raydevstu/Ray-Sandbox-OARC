@@ -14,6 +14,15 @@ describe('deterministic project-memory extraction', () => {
     expect(candidates[0].record.source).toMatchObject({ platform: 'codex', conversationId: 'c1', messageId: 'm1' });
     expect(candidates[0].record.evidence[0]).toMatchObject({ kind: 'conversation', reference: 'm1' });
   });
+  it('classifies meaningful past-tense Codex decisions with provenance', () => {
+    const event = normalizeCodexMcpEvent(scope, metadata, { messageId: 'm-decided', method: 'chat', content: 'We decided to keep Rayclaude-wiki on the PostgreSQL memory path.' });
+    const candidates = extractProjectMemoryCandidates([event]);
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].record.type).toBe('decision');
+    expect(candidates[0].record.content).toContain('Rayclaude-wiki');
+    expect(candidates[0].record.source).toMatchObject({ platform: 'codex', conversationId: 'c1', messageId: 'm-decided' });
+    expect(candidates[0].record.evidence[0]).toMatchObject({ kind: 'conversation', reference: 'm-decided' });
+  });
   it('classifies operational evidence without treating raw events as records', () => {
     const test = normalizeTestEvidence(scope, { projectId: 'p1', source: 'ci', observedAt: metadata.timestamp }, { command: 'npm test', status: 'passed' });
     const health = normalizeRuntimeHealthEvidence(scope, { projectId: 'p1', source: 'runtime', observedAt: metadata.timestamp }, { endpoint: 'http://localhost:3020/health', status: 200, healthy: true });

@@ -163,5 +163,3 @@ def mcp_dispatch(conn, message, scope):
     if method == "memory_retain":
         return {"ok": bool(capture(conn, {"projectId": project_id, "eventType": "MCP", "content": params.get("content", "")})["ok"])}
     return {"ok": False, "error": "unknown method"}
-
-

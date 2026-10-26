@@ -418,3 +418,18 @@ Confirm the saved Hindsight key is active for the Hindsight Cloud project/API en
 - `PARTIAL`: correction, retain, recall, trace, and workflow routes still contain legacy response construction; full metadata display for revision IDs, replay comparison, and evaluation before/after metrics remains pending.
 - `BROWSER VERIFIED`: not claimed. Authenticated 375/768/1440 journeys, keyboard/reduced-motion checks, accessibility checks, and unavailable/degraded/unauthorized/replay-failure/refresh scenarios remain pending.
 - `BENCHMARK VERIFIED`: not claimed for this boundary. `PRODUCTION VERIFIED`: false. External deployment, connector authorization, and provider configuration remain out of scope.
+
+## 2026-10-26 Codex project-memory extraction checkpoint
+
+- `IMPLEMENTED / TESTED`: deterministic Codex extraction now recognizes `decided`; the focused regression and full Vitest suite pass, with typecheck and diff validation passing.
+- `LOCALLY VERIFIED`: rebuilt staging at `http://127.0.0.1:3028` passed identity, health, and readiness checks. The exact `Rayclaude-wiki` project completed capture, worker processing, governed extraction, canonical PostgreSQL persistence, provenance linkage, and audit readback. The ledger contains `CodexConversationEvent`, `ProjectMemoryRecorded`, and `ProjectWorkerCompleted` for the new message.
+- Evidence boundary: this uses the local development principal and synthetic scoped HTTP submission. It is not production, browser, or external live-connector evidence. Full automatic desktop Codex capture remains unclaimed.
+- Next safe boundary: continue Context Tuning dedicated persistence, starting with the failing `ContextConfig` repository test.
+
+## 2026-10-26 Ray Memory edge-spool canonical sync verification
+
+- `TESTED / LOCALLY VERIFIED`: the installed Ray Memory edge synchronizer captured one redacted temporary SQLite event and submitted it through the authenticated staging `/api/project-memory/codex-event` route. The edge row transitioned `queued → processed` with one attempt, zero failures, zero dead letters, and a canonical event ID.
+- `LOCALLY VERIFIED`: PostgreSQL readback for the unique edge-sync marker contains `CodexConversationEvent`, `ProjectMemoryRecorded`, and a `complete` `codex-event-hook` job. The active decision record preserves conversation evidence and redacts the synthetic token and transcript path.
+- `TESTED / LOCALLY VERIFIED`: `npm test -- --run tests/runtime/codex-capture.test.ts tests/runtime/project-memory-pipeline.test.ts tests/runtime/project-worker.test.ts tests/runtime/capture-status.test.ts` passed `15/15`; `npm run staging:validate` passed health, capture, import lifecycle, Codex durable proof, worker completion, and canonical provenance; `npm run typecheck` and `git diff --check` passed.
+- Evidence boundary: this is local installed-runtime to local Docker/PostgreSQL staging evidence. SQLite remains edge-only; no production, browser, external provider, or automatic desktop-capture claim is made.
+- Next safe boundary: restore the repository-owned edge-spool source and add the missing `ray-memory-edge-sync` regression test so this verified path is reproducible from the checkout rather than only from the installed runtime.

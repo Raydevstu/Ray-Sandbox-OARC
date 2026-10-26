@@ -21,7 +21,7 @@ const titleFor = (type: ProjectMemoryType, text: string): string => `${type[0].t
 
 type Rule = Readonly<{ name: string; type: ProjectMemoryType; pattern: RegExp; status: ProjectMemoryRecord['status']; importance: ProjectMemoryRecord['importance']; confidence: number }>;
 const rules: readonly Rule[] = [
-  { name: 'explicit-decision', type: 'decision', pattern: /\b(decide|decision|we will|use|adopt|chosen|agreed)\b/i, status: 'active', importance: 'high', confidence: 0.8 },
+  { name: 'explicit-decision', type: 'decision', pattern: /\b(decide|decided|decision|we will|use|adopt|chosen|agreed)\b/i, status: 'active', importance: 'high', confidence: 0.8 },
   { name: 'requirement', type: 'requirement', pattern: /\b(must|required|requirement|needs to|should support)\b/i, status: 'pending', importance: 'high', confidence: 0.75 },
   { name: 'risk', type: 'risk', pattern: /\b(risk|danger|could fail|may break|regression)\b/i, status: 'active', importance: 'normal', confidence: 0.7 },
   { name: 'blocker', type: 'blocker', pattern: /\b(blocked|blocker|cannot proceed|unable to|refused|unavailable)\b/i, status: 'blocked', importance: 'high', confidence: 0.8 },
