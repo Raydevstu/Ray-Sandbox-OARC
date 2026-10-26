@@ -1,0 +1,11 @@
+# Documentation template only. Verify installed Hermes syntax before use.
+mcp_servers:
+  ray_memory:
+    url: "http://127.0.0.1:3030/api/mcp"
+    headers:
+      Authorization: "Bearer ${RAY_MEMORY_TOKEN}"
+    allowed_tools:
+      - memory_recall
+      - memory_trace
+      - memory_get_project_state
+      - memory_get_capture_status

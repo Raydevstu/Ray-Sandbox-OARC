@@ -20,6 +20,9 @@ import type {
 import { clamp, rng } from "@/lib/utils";
 import { bm25Score, buildBm25, crossEncoderScore, embed, cosine, extractEntities, parseTemporal } from "./nlp";
 import { matchesFilters, validateFilters } from "./filters";
+import { classifyTemporalIntent, resolveFactHistory, type HistoryPolicy } from "./temporal";
+import { packLayeredFacts } from "./layers";
+import { buildRecallDigest } from "./digest";
 
 export interface RecallInput {
   query: string;
@@ -30,6 +33,7 @@ export interface RecallInput {
   settings: RecallSettings;
   queryTimestamp?: Date;
   filters?: FilterNode | null; // Mem0-style v2 filters applied before the arms run
+  historyPolicy?: HistoryPolicy;
 }
 
 /** how budget maps to the recall budget number (fixed & adaptive modes) */
@@ -49,12 +53,15 @@ export function recall(input: RecallInput): RecallTrace {
   const t0 = performance.now();
   const { query, settings } = input;
   const now = input.queryTimestamp ?? new Date();
+  const temporalIntent = classifyTemporalIntent(query);
+  const historyPolicy = input.historyPolicy ?? (temporalIntent === "current" ? "current" : temporalIntent === "historical" ? "historical" : "all");
+  const resolvedFacts = resolveFactHistory(input.facts, historyPolicy);
 
   // pool: facts (filtered by types + v2 filters) + observations surfaced as pseudo-facts
   const filtersValid = input.filters ? validateFilters(input.filters).ok : true;
   const now0 = new Date();
   const pool: { fact: MemoryFact; observation?: Observation }[] = [];
-  for (const f of input.facts) {
+  for (const f of resolvedFacts) {
     if (settings.types.length && !settings.types.includes(f.network)) continue;
     // TTL: expired memories are skipped unless explicitly included
     if (!settings.includeExpired && f.expiresAt && new Date(f.expiresAt) < now0) continue;
@@ -226,10 +233,24 @@ export function recall(input: RecallInput): RecallTrace {
     }
   }
 
+  const layered = packLayeredFacts(selected.map((candidate) => candidate.fact), settings.maxTokens);
+  const layerByFact = new Map(layered.layers.map((layer) => [layer.factId, layer]));
+  const layerTokens = { l0: 0, l1: 0, l2: 0 };
+  for (const candidate of selected) {
+    const layer = layerByFact.get(candidate.fact.id);
+    if (!layer) continue;
+    candidate.selectedLayer = layer.layer;
+    candidate.tokens = layer.tokens;
+    layerTokens[layer.layer] += layer.tokens;
+  }
+  const digest = buildRecallDigest(query, selected.map((candidate) => ({ fact: candidate.fact, finalScore: candidate.finalScore, tokens: candidate.tokens })));
+
   const latency = performance.now() - t0;
 
   return {
     query,
+    temporalIntent,
+    historyPolicy,
     window,
     arms: { semantic, bm25, graph, temporal },
     candidates,
@@ -241,6 +262,8 @@ export function recall(input: RecallInput): RecallTrace {
       latency * 6 + rb * 0.05 + (reranking ? (candidates.length > 12 ? 18 : 6) + 14 : 4)
     ), // simulated serving latency — precision path costs ~+14ms like the documented rerank overhead
     recallBudget: rb,
+    layerTokens,
+    digest,
   };
 }
 

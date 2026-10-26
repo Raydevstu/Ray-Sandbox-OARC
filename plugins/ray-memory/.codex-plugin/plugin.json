@@ -1,0 +1,6 @@
+{
+  "name": "ray-memory",
+  "version": "0.1.0",
+  "description": "Capture approved Codex lifecycle events into the Ray Sandbox memory service.",
+  "hooks": "./hooks/hooks.json"
+}

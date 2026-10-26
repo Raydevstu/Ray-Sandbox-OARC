@@ -1,0 +1,11 @@
+{
+  "name": "ray-sandbox-local",
+  "plugins": [
+    {
+      "name": "ray-memory",
+      "source": { "source": "local", "path": "./plugins/ray-memory" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_USE" },
+      "interface": { "displayName": "Ray Memory", "shortDescription": "Capture approved Codex lifecycle events into project memory." }
+    }
+  ]
+}

@@ -12,6 +12,7 @@ import {
 import { Badge, Button, Card, CardHeader, Empty, Input, Segmented, Toggle } from "@/components/ui";
 import { Sparkline } from "@/components/ui";
 import { useSandbox } from "@/lib/store";
+import { postPhase3Step } from "@/lib/runtime/phase3-client";
 import { cn, fmtMs, fmtNum } from "@/lib/utils";
 import type { AppId, OrchestratorEdge, OrchestratorNode } from "@/lib/types";
 
@@ -46,6 +47,9 @@ export default function OrchestratorPage() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [runtimeScope, setRuntimeScope] = useState<{ tenantId: string; bankId: string; projectId: string; workflowRunId: string } | null>(null);
+  const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null);
+  useEffect(() => { void fetch('/api/auth/session', { cache: 'no-store' }).then(async (res) => { if (!res.ok) return; const x = await res.json(); if (x.tenantId && x.bankId && x.projectId) setRuntimeScope({ tenantId: x.tenantId, bankId: x.bankId, projectId: x.projectId, workflowRunId: `orchestrator-${crypto.randomUUID()}` }); }); }, []);
   const [packetT, setPacketT] = useState(0);
   const [drag, setDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -57,6 +61,10 @@ export default function OrchestratorPage() {
   /* ---- run pipeline: topological pulse animation ---- */
   const runPipeline = useCallback(() => {
     if (running) return;
+    if (s.ui.runtimeMode === 'runtime') {
+      if (!runtimeScope) { setRuntimeMessage('Runtime scope unavailable; pipeline was not persisted.'); return; }
+      void fetch('/api/v1/workflow/domain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...runtimeScope, kind: 'orchestrator_graph', recordId: 'graph-default', payload: { nodes: s.nodes, edges: s.edges } }) }).then(async (response) => { const body = await response.json(); setRuntimeMessage(body.ok ? 'Orchestrator graph persisted.' : (body.error ?? 'Orchestrator persistence failed')); });
+    }
     setRunning(true);
     setPacketT(0);
     const start = performance.now();
@@ -79,7 +87,7 @@ export default function OrchestratorPage() {
       }
     };
     requestAnimationFrame(tick);
-  }, [running, s]);
+  }, [running, runtimeScope, s]);
 
   /* ---- drag & pan ---- */
   const toCanvas = (e: { clientX: number; clientY: number }) => {
@@ -205,6 +213,7 @@ export default function OrchestratorPage() {
             {running ? <RefreshSpin /> : <Play size={13} />}
             {running ? "Running…" : "Run pipeline"}
           </Button>
+          {runtimeMessage && <p className="text-xs text-muted" role="status">{runtimeMessage}</p>}
           <Button variant="ghost" size="sm" className="w-full" onClick={() => setView({ x: 0, y: 0, k: 1 })}>
             Reset view · {Math.round(view.k * 100)}%
           </Button>

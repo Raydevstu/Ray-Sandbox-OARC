@@ -1,0 +1,11 @@
+import { describe, expect, it } from 'vitest';
+import { importConversationExport, normalizeImportedConversation, unavailableImport } from '../../lib/runtime/cross-platform-import';
+
+const scope = { tenantId: 't1', bankId: 'b1' } as const;
+const base = { projectId: 'p1', platform: 'claude' as const, conversationId: 'c1', exportedAt: '2026-10-07T00:00:00.000Z', sourceReference: 'export/conversation-c1.json' };
+describe('cross-platform export adapters', () => {
+  it('normalizes supported export messages into the common conversation envelope', () => { const events = normalizeImportedConversation(scope, { ...base, messages: [{ uuid: 'm1', sender: 'user', text: 'A requirement must be preserved.', createdAt: base.exportedAt }, { id: 'm2', role: 'assistant', content: 'Acknowledged.' }] }); expect(events).toHaveLength(2); expect(events[0]).toMatchObject({ platform: 'claude', conversationId: 'c1', messageId: 'm1', role: 'user' }); });
+  it('creates deterministic project events with exact export provenance', () => { const first = importConversationExport(scope, { ...base, platform: 'chatgpt', messages: [{ id: 'm1', role: 'user', content: 'Decision: retain the event log.' }] }); const second = importConversationExport(scope, { ...base, platform: 'chatgpt', messages: [{ id: 'm1', role: 'user', content: 'Decision: retain the event log.' }] }); expect(first.gaps).toHaveLength(0); expect(first.events[0].id).toBe(second.events[0].id); expect(first.events[0].payload).toMatchObject({ source: { platform: 'chatgpt', reference: base.sourceReference } }); });
+  it('supports cursor, gemini, and terminal exports without platform-specific memory rules', () => { for (const platform of ['cursor', 'gemini', 'terminal'] as const) { const result = importConversationExport(scope, { ...base, platform, messages: [{ role: 'user', content: `${platform} message` }] }); expect(result.events[0].payload).toMatchObject({ conversation: { platform } }); } });
+  it('reports unavailable or malformed exports explicitly', () => { expect(unavailableImport('gemini', 'p1').gaps[0].reason).toBe('export_unavailable'); expect(importConversationExport(scope, { ...base, messages: [{ role: 'user', content: '' }] }).gaps[0].reason).toBe('invalid_export'); });
+});

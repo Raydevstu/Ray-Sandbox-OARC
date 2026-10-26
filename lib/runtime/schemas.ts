@@ -1,0 +1,20 @@
+import { z } from 'zod';
+
+const memoryScopeShape = { tenantId: z.string().trim().min(1), bankId: z.string().trim().min(1) };
+const scoped = z.object(memoryScopeShape).strict();
+export const MemoryScopeSchema = scoped.readonly();
+export const RetrievalRequestSchema = scoped.extend({ query: z.string().trim().min(1), limit: z.number().int().positive().max(100).optional() });
+export const MemoryFactRevisionSchema = scoped.extend({ projectId: z.string().min(1).optional(), id: z.string().min(1), revision: z.number().int().positive(), claim: z.string().min(1), confidence: z.number().min(0).max(1), evidenceIds: z.array(z.string().min(1)).min(1), createdAt: z.string().datetime() }).strict();
+export const EvidenceRecordSchema = scoped.extend({ id: z.string().min(1), source: z.string().min(1), content: z.string().min(1), provenance: z.string().min(1), createdAt: z.string().datetime() }).strict();
+export const EventRecordSchema = scoped.extend({ id: z.string().min(1), type: z.string().min(1), payload: z.record(z.string(), z.unknown()), occurredAt: z.string().datetime() }).strict();
+const projectMemoryTypes = z.enum(['requirement', 'decision', 'implementation', 'test', 'benchmark', 'runtime', 'risk', 'blocker', 'follow_up', 'document_reference']);
+const projectMemoryStatuses = z.enum(['active', 'superseded', 'pending', 'verified', 'blocked', 'stale', 'conflict', 'uncertain']);
+const evidenceKinds = z.enum(['conversation', 'file', 'test', 'http', 'database', 'browser', 'commit', 'runtime', 'decision']);
+export const ProjectMemorySourceSchema = z.object({ platform: z.string().min(1), conversationId: z.string().min(1).optional(), messageId: z.string().min(1).optional(), filePath: z.string().min(1).optional(), commit: z.string().min(1).optional(), timestamp: z.string().datetime() }).strict();
+export const MemoryIdentityScopeSchema = z.object({ userId: z.string().min(1).optional(), agentId: z.string().min(1).optional(), appId: z.string().min(1).optional(), runId: z.string().min(1).optional() }).strict();
+export const ProjectMemoryEvidenceSchema = z.object({ kind: evidenceKinds, reference: z.string().min(1), observedAt: z.string().datetime() }).strict();
+export const ProjectMemoryRecordSchema = scoped.extend({ id: z.string().min(1), projectId: z.string().min(1), identity: MemoryIdentityScopeSchema.optional(), type: projectMemoryTypes, title: z.string().min(1), content: z.string().min(1), status: projectMemoryStatuses, confidence: z.number().min(0).max(1), importance: z.enum(['critical', 'high', 'normal', 'low']), source: ProjectMemorySourceSchema, evidence: z.array(ProjectMemoryEvidenceSchema), supersedes: z.array(z.string().min(1)), relatedRecords: z.array(z.string().min(1)), createdAt: z.string().datetime(), updatedAt: z.string().datetime() }).strict();
+export const ConversationEventSchema = scoped.extend({ projectId: z.string().min(1), platform: z.string().min(1), conversationId: z.string().min(1), messageId: z.string().min(1), role: z.enum(['user', 'assistant', 'tool', 'system']), content: z.string(), timestamp: z.string().datetime(), attachments: z.array(z.string()).optional(), toolCalls: z.array(z.unknown()).optional() }).strict();
+export const OutboxRecordSchema = scoped.extend({ id: z.string().min(1), eventId: z.string().min(1), idempotencyKey: z.string().min(1), status: z.enum(['pending', 'published']) }).strict();
+export const RetrievalResponseSchema = z.object({ facts: z.array(MemoryFactRevisionSchema), traceId: z.string().min(1) }).strict();
+export const HealthReportSchema = z.object({ status: z.enum(['ok', 'degraded']), checks: z.record(z.string(), z.boolean()) }).strict();

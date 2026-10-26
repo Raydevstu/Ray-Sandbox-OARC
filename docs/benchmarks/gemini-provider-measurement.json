@@ -1,0 +1,15 @@
+{
+  "version": "gemini-provider-sample-v1",
+  "provider": "gemini:gemini-2.5-flash",
+  "budgetUsd": 1,
+  "sampleSize": 5,
+  "mode": "provider",
+  "latencyMs": 16405,
+  "estimatedCostUsd": 0.01,
+  "accepted": 0,
+  "rejected": 5,
+  "reviewer": "Codex",
+  "reviewed": [],
+  "canonicalWrites": 0,
+  "generatedAt": "2026-10-10T05:14:26.148Z"
+}

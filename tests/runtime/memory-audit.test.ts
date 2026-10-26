@@ -1,0 +1,6 @@
+import { describe, expect, it } from 'vitest';
+import { buildMemoryAudit } from '../../lib/runtime/memory-audit';
+import type { ProjectMemoryRecord } from '../../lib/runtime/contracts';
+
+const record = (id: string, status: ProjectMemoryRecord['status'], updatedAt: string): ProjectMemoryRecord => ({ tenantId: 't1', bankId: 'b1', id, projectId: 'p1', type: 'decision', title: id, content: id, status, confidence: 0.8, importance: 'normal', source: { platform: 'codex', timestamp: updatedAt }, evidence: [{ kind: 'conversation', reference: id, observedAt: updatedAt }], supersedes: [], relatedRecords: [], createdAt: updatedAt, updatedAt });
+describe('project memory audit model', () => { it('scopes, counts, and deterministically orders records', () => { const audit = buildMemoryAudit('p1', [record('old', 'stale', '2026-10-01T00:00:00.000Z'), record('new', 'verified', '2026-10-02T00:00:00.000Z'), { ...record('other', 'blocked', '2026-10-03T00:00:00.000Z'), projectId: 'p2' }], ['Claude export unavailable']); expect(audit.total).toBe(2); expect(audit.counts.verified).toBe(1); expect(audit.counts.stale).toBe(1); expect(audit.counts.blocked).toBe(0); expect(audit.records[0].id).toBe('new'); expect(audit.captureGaps).toEqual(['Claude export unavailable']); }); });

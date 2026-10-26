@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "ray_memory": {
+      "command": "C:/Program Files/Volta/node.exe",
+      "args": [
+        "D:/Projects/RAY SANDBOX OWEN/hindsight-memory-slice/scripts/hermes-mcp-proxy.mjs"
+      ],
+      "env": {
+        "RAY_MEMORY_MCP_URL": "http://127.0.0.1:3030/api/mcp",
+        "RAY_MEMORY_AGENT_ID": "hermes-ray-dashboard-test",
+        "RAY_MEMORY_TENANT_ID": "demo-tenant",
+        "RAY_MEMORY_BANK_ID": "bank-a",
+        "RAY_MEMORY_PROJECT_ID": "ray-dashboard-test"
+      },
+      "enabled": true
+    }
+  }
+}

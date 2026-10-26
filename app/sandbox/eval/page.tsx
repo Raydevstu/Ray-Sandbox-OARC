@@ -6,7 +6,7 @@
    in the published result format, run history comparison and
    user-contributed question sets. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FlaskConical, History, Play, RefreshCw, Trash2, Trophy, Upload, ChevronDown, ChevronRight,
 } from "lucide-react";
@@ -35,6 +35,10 @@ export default function EvalPage() {
   const [runName, setRunName] = useState("");
   const [busy, setBusy] = useState(false);
   const [latest, setLatest] = useState<EvalRun | null>(null);
+  const [runtimeScope, setRuntimeScope] = useState<{ tenantId: string; bankId: string; projectId: string; workflowRunId: string } | null>(null);
+  const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null);
+
+  useEffect(() => { void fetch("/api/auth/session", { cache: "no-store" }).then(async (r) => { if (!r.ok) return; const x = await r.json(); if (!x.tenantId || !x.bankId || !x.projectId) return; const scope = { tenantId: x.tenantId, bankId: x.bankId, projectId: x.projectId, workflowRunId: `evaluation-${crypto.randomUUID()}` }; setRuntimeScope(scope); if (s.ui.runtimeMode !== 'runtime') return; const query = new URLSearchParams({ tenantId: x.tenantId, bankId: x.bankId, projectId: x.projectId }); const response = await fetch(`/api/v1/memory/evaluate?${query}`, { cache: 'no-store' }); if (response.ok) { const envelope = await response.json(); if (Array.isArray(envelope.data?.runs)) s.replaceEvalRuns(envelope.data.runs); } }); }, [s.ui.runtimeMode, s.replaceEvalRuns]);
 
   const set = s.evalSets.find((x) => x.id === setId) ?? s.evalSets[0];
 
@@ -46,6 +50,16 @@ export default function EvalPage() {
         runName.trim() || `run-${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`,
         set.questions
       );
+      if (s.ui.runtimeMode === "runtime") {
+        if (!runtimeScope) { setRuntimeMessage("Runtime scope unavailable; evaluation was not persisted."); setBusy(false); return; }
+        void fetch('/api/v1/memory/evaluate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...runtimeScope, run }) }).then(async (response) => {
+          const envelope = await response.json();
+          if (!envelope.ok) setRuntimeMessage(envelope.error ?? 'Canonical evaluation failed');
+          else { setLatest(run); setRuntimeMessage('Evaluation persisted to the canonical store.'); }
+          setBusy(false);
+        });
+        return;
+      }
       setLatest(run);
       setBusy(false);
       setRunName("");
@@ -93,6 +107,7 @@ export default function EvalPage() {
                   {busy ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} />}
                   {busy ? "Evaluating…" : "Run evaluation"}
                 </Button>
+                {runtimeMessage && <p className="text-xs text-muted" role="status">{runtimeMessage}</p>}
                 <div className="rounded-lg border border-border-soft bg-bg-soft p-2.5 text-[10.5px] text-faint leading-relaxed">
                   Uses the <b className="text-muted">current Context Tuning settings</b> (budget, max_tokens, rerank,
                   boosts). Change tuning → re-run → compare in history. Judge is deterministic gold-token overlap —

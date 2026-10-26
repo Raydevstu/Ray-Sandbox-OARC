@@ -11,6 +11,8 @@ import {
 import { Badge, Button, Card, CardHeader, Input, Segmented, Slider, Textarea, Toggle } from "@/components/ui";
 import { useSandbox } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { RuntimeStatus } from "@/components/memory/RuntimeStatus";
+import { RepairPanel } from "@/components/memory/RepairPanel";
 
 const ACCENTS = [
   { name: "Violet", hue: 257 },
@@ -75,6 +77,11 @@ export default function SettingsPage() {
             </div>
             <Toggle checked={ui.animations} onChange={(v) => s.setUi({ animations: v })} label="Animations" description="Graph pulses, packet flow, fade-ins." />
             <Toggle checked={ui.showTraceDetails} onChange={(v) => s.setUi({ showTraceDetails: v })} label="Verbose recall traces" description="Show per-arm ranks and boost math in the Memory app." />
+            <div>
+              <p className="text-xs text-muted mb-2">Execution mode</p>
+              <Segmented value={ui.runtimeMode} onChange={(v) => s.setUi({ runtimeMode: v })} options={[{ value: "deterministic", label: "Deterministic" }, { value: "runtime", label: "Runtime" }]} />
+              <p className="text-[11px] text-faint mt-1">Runtime mode is explicit; health and canonical-store readiness are reported below.</p>
+            </div>
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -122,6 +129,9 @@ export default function SettingsPage() {
           <Slider label="Background grid opacity" min={0} max={1} step={0.1} value={ui.gridOpacity} onChange={(v) => s.setUi({ gridOpacity: v })} format={(v) => `${Math.round(v * 100)}%`} />
         </div>
       </Card>
+
+      <RuntimeStatus mode={ui.runtimeMode} />
+      <RepairPanel />
 
       {/* ============ data ============ */}
       <Card>
@@ -186,7 +196,7 @@ export default function SettingsPage() {
         <CardHeader title="About" icon={<Settings2 size={15} />} />
         <div className="text-[12.5px] text-muted leading-relaxed space-y-2">
           <p>
-            <b className="text-ink">Hindsight Sandbox</b> is an open-source (MIT) study environment modeled on the
+            <b className="text-ink">Ray Sandbox OARC</b> is an open-source (MIT) study environment modeled on the
             Hindsight agent-memory architecture: four networks (world, experience, observation, opinion), three
             operations (retain, recall, reflect), a temporal entity graph with four link types, four-arm retrieval
             with RRF fusion, cross-encoder reranking, token-budget packing, evidence-grounded observation

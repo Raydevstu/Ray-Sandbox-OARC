@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CornerDownLeft, Database, Gauge, GraduationCap, LayoutDashboard, Moon,
-  Settings2, SlidersHorizontal, Sparkles, Sun, Workflow, RotateCcw, FlaskConical, Cable,
+  Settings2, SlidersHorizontal, Sparkles, Sun, Workflow, RotateCcw, FlaskConical, Cable, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSandbox } from "@/lib/store";
@@ -40,6 +40,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       { id: "eval", label: "Go to Evaluation", group: "Navigate", icon: FlaskConical, action: go("/sandbox/eval") },
       { id: "bench", label: "Go to Benchmarks", group: "Navigate", icon: Gauge, action: go("/sandbox/benchmarks") },
       { id: "integrations", label: "Go to Integrations", group: "Navigate", icon: Cable, action: go("/sandbox/integrations") },
+      { id: "docs", label: "Go to Docs & Guides", group: "Navigate", icon: BookOpen, action: go("/sandbox/docs") },
       { id: "settings", label: "Go to Settings", group: "Navigate", icon: Settings2, action: go("/sandbox/settings") },
       {
         id: "theme",

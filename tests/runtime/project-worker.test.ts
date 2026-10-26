@@ -1,0 +1,9 @@
+import { describe, expect, it } from 'vitest';
+import { BoundedProjectWorker } from '../../lib/runtime/project-worker';
+
+const event = (id: string, tenantId = 't1') => ({ tenantId, bankId: 'b1', id, projectId: 'p1', type: 'EvidenceTest', payload: {}, occurredAt: '2026-10-07T00:00:00.000Z', sequence: Number(id.slice(1)) });
+describe('bounded project worker', () => {
+  it('bounds queue admission and advances a checkpoint after processing', async () => { const seen: string[] = []; const worker = new BoundedProjectWorker({ tenantId: 't1', bankId: 'b1' }, { consumer: 'extractor', maxQueue: 1, concurrency: 1, maxAttempts: 2, now: () => '2026-10-07T00:00:01.000Z' }, async (item) => { seen.push(item.id); }); expect(worker.enqueue(event('e1'))).toBe(true); expect(worker.enqueue(event('e2'))).toBe(false); const result = await worker.run(); expect(seen).toEqual(['e1']); expect(result.telemetry.queueRejected).toBe(1); expect(result.checkpoint?.eventId).toBe('e1'); });
+  it('retries failures and dead-letters after the attempt budget', async () => { let attempts = 0; const worker = new BoundedProjectWorker({ tenantId: 't1', bankId: 'b1' }, { consumer: 'extractor', maxQueue: 4, concurrency: 1, maxAttempts: 2, now: () => '2026-10-07T00:00:01.000Z' }, async () => { attempts += 1; throw new Error('failed'); }); worker.enqueue(event('e1')); const result = await worker.run(); expect(attempts).toBe(2); expect(result.telemetry.retried).toBe(1); expect(result.telemetry.deadLettered).toBe(1); expect(result.deadLetters).toHaveLength(1); expect(result.checkpoint).toBeUndefined(); });
+  it('rejects cross-scope events before queueing', () => { const worker = new BoundedProjectWorker({ tenantId: 't1', bankId: 'b1' }, { consumer: 'extractor', maxQueue: 1, concurrency: 1, maxAttempts: 1 }, async () => undefined); expect(() => worker.enqueue(event('e1', 't2'))).toThrow('scope'); });
+});

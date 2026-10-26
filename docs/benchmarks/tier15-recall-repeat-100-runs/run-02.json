@@ -1,0 +1,76 @@
+{
+  "baseUrl": "http://127.0.0.1:3028",
+  "started": "2026-10-22T20:05:42.066Z",
+  "concurrency": 100,
+  "recallLimit": 10,
+  "projection": "full",
+  "scope": {
+    "tenantId": "staging-tenant",
+    "bankId": "staging-bank",
+    "projectId": "tier15-profile-100-20261023"
+  },
+  "query": "canonical PostgreSQL persistence store",
+  "directDatabase": {
+    "p50Ms": 58.06,
+    "p95Ms": 118.39,
+    "p99Ms": 120.47,
+    "maxMs": 120.77,
+    "totalMs": 785.99
+  },
+  "request": {
+    "failures": 0,
+    "p50Ms": 479.22,
+    "p95Ms": 588.44,
+    "p99Ms": 596.22,
+    "maxMs": 600.13,
+    "factsP95": 10,
+    "evidenceP95": 10,
+    "resultBytesP95": 9398
+  },
+  "serverTimingSamples": [
+    "auth;dur=0.04, scope;dur=0.45, authorize;dur=0, queue;dur=0.02, repository;dur=0.01, sql;dur=38.76, response;dur=0.15, poolWaiting=4, poolTotal=5",
+    "auth;dur=0.05, scope;dur=0.45, authorize;dur=0.01, queue;dur=0.01, repository;dur=0.01, sql;dur=67.19, response;dur=1.11, poolWaiting=14, poolTotal=5",
+    "auth;dur=0.04, scope;dur=0.46, authorize;dur=0.01, queue;dur=0.02, repository;dur=0.01, sql;dur=119.28, response;dur=0.23, poolWaiting=33, poolTotal=5",
+    "auth;dur=0.05, scope;dur=0.52, authorize;dur=0.01, queue;dur=0.02, repository;dur=0.01, sql;dur=127.24, response;dur=0.2, poolWaiting=38, poolTotal=5",
+    "auth;dur=0.06, scope;dur=0.87, authorize;dur=0.01, queue;dur=0.02, repository;dur=0.01, sql;dur=157.54, response;dur=0.15, poolWaiting=44, poolTotal=5"
+  ],
+  "plan": [
+    "GroupAggregate  (cost=29.41..58.51 rows=10 width=258) (actual time=0.629..0.643 rows=10 loops=1)",
+    "  Group Key: f.revision, f.id, f.tenant_id, f.bank_id, f.project_id, f.claim, f.confidence, f.created_at",
+    "  Buffers: shared hit=48",
+    "  ->  Incremental Sort  (cost=29.41..58.16 rows=10 width=291) (actual time=0.617..0.619 rows=10 loops=1)",
+    "        Sort Key: f.revision DESC, f.id, f.tenant_id, f.bank_id, f.project_id, f.claim, f.confidence, f.created_at",
+    "        Presorted Key: f.revision",
+    "        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 28kB  Peak Memory: 28kB",
+    "        Buffers: shared hit=48",
+    "        ->  Nested Loop Left Join  (cost=0.84..57.88 rows=10 width=291) (actual time=0.223..0.394 rows=10 loops=1)",
+    "              Buffers: shared hit=36",
+    "              ->  Limit  (cost=0.43..13.48 rows=10 width=226) (actual time=0.130..0.159 rows=10 loops=1)",
+    "                    Buffers: shared hit=5",
+    "                    ->  Nested Loop Anti Join  (cost=0.43..130.89 rows=100 width=226) (actual time=0.128..0.156 rows=10 loops=1)",
+    "                          Join Filter: (d.fact_id = f.id)",
+    "                          Buffers: shared hit=5",
+    "                          ->  Index Scan Backward using facts_project_scope_idx on facts f  (cost=0.28..121.22 rows=100 width=226) (actual time=0.050..0.074 rows=10 loops=1)",
+    "                                Index Cond: ((tenant_id = 'staging-tenant'::text) AND (bank_id = 'staging-bank'::text) AND (project_id = 'tier15-profile-100-20261023'::text))",
+    "                                Filter: (claim ~~* ANY ('{%canonical%,%postgresql%,%persistence%,%store%}'::text[]))",
+    "                                Buffers: shared hit=3",
+    "                          ->  Materialize  (cost=0.15..8.18 rows=1 width=96) (actual time=0.008..0.008 rows=0 loops=10)",
+    "                                Buffers: shared hit=2",
+    "                                ->  Index Only Scan using deleted_facts_pkey on deleted_facts d  (cost=0.15..8.17 rows=1 width=96) (actual time=0.065..0.065 rows=0 loops=1)",
+    "                                      Index Cond: ((tenant_id = 'staging-tenant'::text) AND (bank_id = 'staging-bank'::text))",
+    "                                      Heap Fetches: 0",
+    "                                      Buffers: shared hit=2",
+    "              ->  Index Only Scan using fact_evidence_pkey on fact_evidence fe  (cost=0.41..4.43 rows=1 width=162) (actual time=0.022..0.022 rows=1 loops=10)",
+    "                    Index Cond: ((tenant_id = f.tenant_id) AND (bank_id = f.bank_id) AND (fact_id = f.id) AND (fact_revision = f.revision))",
+    "                    Heap Fetches: 0",
+    "                    Buffers: shared hit=31",
+    "Planning:",
+    "  Buffers: shared hit=348",
+    "Planning Time: 6.851 ms",
+    "Execution Time: 0.968 ms"
+  ],
+  "activitySamples": 22,
+  "waitStates": {
+    "Client:ClientRead": 135
+  }
+}

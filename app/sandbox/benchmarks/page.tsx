@@ -14,6 +14,7 @@ import {
   type BenchmarkRow,
 } from "@/lib/data/benchmarks";
 import { cn } from "@/lib/utils";
+import { LiveBenchmarkPanel } from "@/components/oarc-v2/live-benchmark-panel";
 
 type Tab = "headline" | "longmemeval" | "locomo" | "ledger" | "systems";
 
@@ -21,13 +22,14 @@ export default function BenchmarksPage() {
   const [tab, setTab] = useState<Tab>("headline");
   return (
     <div className="max-w-[1400px] mx-auto space-y-4">
+      <LiveBenchmarkPanel />
       <Card className="flex flex-wrap items-center gap-3 py-3">
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-bold text-ink flex items-center gap-2">
             <Trophy size={15} className="text-accent" /> Benchmark explorer
           </h2>
           <p className="text-xs text-muted mt-0.5">
-            Published results from the reviewed papers — this sandbox displays and cross-filters them; it does not re-run evaluations.
+            Evidence labels are explicit: imported published references are not local measurements. Local, live-connector, and production runs appear only when directly recorded by the runtime.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">

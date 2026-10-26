@@ -51,6 +51,14 @@ export function RecallTraceView({ trace }: { trace: Trace }) {
         </div>
       )}
 
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted rounded-lg border border-border-soft bg-surface-2 px-3 py-2">
+        <span className="chip">intent: {trace.temporalIntent ?? "none"}</span>
+        <span className="chip">history: {trace.historyPolicy ?? "all"}</span>
+        {trace.layerTokens && (
+          <span className="chip">layers: L0 {trace.layerTokens.l0} · L1 {trace.layerTokens.l1} · L2 {trace.layerTokens.l2} tokens</span>
+        )}
+      </div>
+
       {/* four arms */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         {(Object.keys(ARM_META) as (keyof typeof ARM_META)[]).map((arm) => {
@@ -105,6 +113,7 @@ export function RecallTraceView({ trace }: { trace: Trace }) {
                 <th className="px-2 py-2 font-medium w-24 text-right">Boosts</th>
                 <th className="px-2 py-2 font-medium w-16 text-right">Final</th>
                 <th className="px-2 py-2 font-medium w-14 text-right">Tokens</th>
+                <th className="px-2 py-2 font-medium w-14 text-center">Layer</th>
                 <th className="px-3 py-2 font-medium w-16 text-center">Packed</th>
               </tr>
             </thead>
@@ -154,6 +163,7 @@ export function RecallTraceView({ trace }: { trace: Trace }) {
                   </td>
                   <td className="px-2 py-2 text-right font-mono text-accent font-semibold">{c.finalScore.toFixed(3)}</td>
                   <td className="px-2 py-2 text-right font-mono text-muted">{c.tokens}</td>
+                  <td className="px-2 py-2 text-center font-mono text-faint">{c.selectedLayer ?? "-"}</td>
                   <td className="px-3 py-2 text-center">
                     {c.included ? (
                       <Check size={13} className="text-ok inline" />
@@ -178,6 +188,49 @@ export function RecallTraceView({ trace }: { trace: Trace }) {
               {showAll ? "Show top 8" : `Show all ${trace.candidates.length}`}
             </button>
           )}
+        </div>
+      </Card>
+
+      {trace.digest && (
+        <Card>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-sm font-semibold text-ink">Deterministic recall digest</h3>
+              <p className="text-[11px] text-faint">{trace.digest.suppressed ? "No relevant memory was injected." : `${trace.digest.bullets.length} cited bullet(s)`}</p>
+            </div>
+            <span className="chip font-mono">{trace.digest.inputTokens} → {trace.digest.outputTokens} tokens</span>
+          </div>
+          {trace.digest.suppressed ? (
+            <p className="text-xs text-muted italic">{trace.digest.reason}</p>
+          ) : (
+            <div className="space-y-1.5">
+              {trace.digest.bullets.map((bullet) => (
+                <div key={bullet.factIds.join(",")} className="rounded-lg border border-border-soft bg-surface-2 px-3 py-2 text-xs text-muted">
+                  <span className="text-ink">{bullet.text}</span>
+                  <span className="ml-2 font-mono text-accent">[{bullet.factIds.join(", ")}]</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="text-sm font-semibold text-ink">Citations</h3>
+            <p className="text-[11px] text-faint">Selected memories are the evidence surface for this deterministic trace.</p>
+          </div>
+          <span className="chip font-mono">{trace.selected.length} source(s)</span>
+        </div>
+        <div className="space-y-1.5">
+          {trace.selected.map((candidate, index) => (
+            <div key={candidate.fact.id} className="rounded-lg border border-border-soft bg-surface-2 px-3 py-2 text-xs">
+              <span className="font-mono text-accent mr-2">[{index + 1}]</span>
+              <span className="text-ink">{candidate.fact.text}</span>
+              <span className="block text-[10px] text-faint mt-1 font-mono">{candidate.fact.id} · score {candidate.finalScore.toFixed(3)}</span>
+            </div>
+          ))}
+          {!trace.selected.length && <p className="text-xs text-muted italic">No sources selected.</p>}
         </div>
       </Card>
     </div>

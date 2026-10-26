@@ -4,7 +4,7 @@
    disposition verbalization, A/B compare and test runs against
    the active memory bank. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Copy, GitCompareArrows, Play, Plus, RefreshCw, Save, Sparkles, Trash2, History, BrainCircuit,
 } from "lucide-react";
@@ -15,6 +15,8 @@ import { verbalizeDisposition } from "@/lib/engine/reflect";
 import { recall } from "@/lib/engine/recall";
 import { cn, fmtMs, timeAgo } from "@/lib/utils";
 import type { Disposition, PromptTemplate } from "@/lib/types";
+import { savePromptVersion } from "@/lib/runtime/prompt-client";
+import type { PromptScope } from "@/lib/runtime/prompt-client";
 
 export default function PromptsPage() {
   const s = useSandbox();
@@ -95,6 +97,8 @@ export default function PromptsPage() {
 
 function EditorPane({ prompt }: { prompt: PromptTemplate }) {
   const s = useSandbox();
+  const [runtimeScope, setRuntimeScope] = useState<PromptScope | null>(null);
+  const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null);
   const [name, setName] = useState(prompt.name);
   const [system, setSystem] = useState(prompt.system);
   const [user, setUser] = useState(prompt.user);
@@ -102,6 +106,14 @@ function EditorPane({ prompt }: { prompt: PromptTemplate }) {
   const [testQuery, setTestQuery] = useState("Should we pick Redis or Valkey for caching?");
   const [runOut, setRunOut] = useState<{ response: string; latencyMs: number; tokens: number; score: number } | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void fetch("/api/auth/session", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) return;
+      const session = await response.json() as Partial<PromptScope>;
+      if (session.tenantId && session.bankId && session.projectId) setRuntimeScope({ tenantId: session.tenantId, bankId: session.bankId, projectId: session.projectId });
+    });
+  }, []);
 
   const variables = useMemo(() => {
     const vars = new Set<string>();
@@ -111,10 +123,17 @@ function EditorPane({ prompt }: { prompt: PromptTemplate }) {
 
   const dirty = name !== prompt.name || system !== prompt.system || user !== prompt.user;
 
-  const save = () => {
+  const save = async (): Promise<boolean> => {
+    if (s.ui.runtimeMode === "runtime") {
+      if (!runtimeScope) { setRuntimeMessage("Runtime scope is unavailable; connect an authorized session before saving."); return false; }
+      const response = await savePromptVersion(runtimeScope, { promptId: prompt.id, version: prompt.versions.length + 1, content: JSON.stringify({ name, system, user, variables }) });
+      if (!response.ok) { setRuntimeMessage(response.error ?? "Canonical prompt store unavailable"); return false; }
+      setRuntimeMessage(`Saved canonical prompt v${prompt.versions.length + 1}.`);
+    }
     s.updatePrompt(prompt.id, { name, system, user, description: prompt.description, variables });
     setRunOut(null);
     s.logEvent({ app: "prompts", op: "system", message: `Prompt "${name}" updated (unsaved draft committed)` });
+    return true;
   };
 
   const testRun = () => {
@@ -150,10 +169,10 @@ function EditorPane({ prompt }: { prompt: PromptTemplate }) {
               <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(system + "\n---\n" + user)}>
                 <Copy size={12} /> Copy
               </Button>
-              <Button size="sm" variant="outline" onClick={save} disabled={!dirty}>
+              <Button size="sm" variant="outline" onClick={() => { void save(); }} disabled={!dirty}>
                 <Save size={12} /> Save
               </Button>
-              <Button size="sm" variant="primary" onClick={() => { save(); s.savePromptVersion(prompt.id, note || "manual save"); setNote(""); }}>
+              <Button size="sm" variant="primary" onClick={() => { void save().then((saved) => { if (saved) { s.savePromptVersion(prompt.id, note || "manual save"); setNote(""); } }); }}>
                 <History size={12} /> Save as version
               </Button>
             </div>
@@ -170,6 +189,7 @@ function EditorPane({ prompt }: { prompt: PromptTemplate }) {
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Version note (optional)…" className="text-xs" />
           </div>
           <VariablePreview text={system} vars={variables} />
+          {runtimeMessage && <p className="mt-3 text-xs text-muted" role="status">{runtimeMessage}</p>}
         </Card>
       </div>
 

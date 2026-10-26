@@ -8,15 +8,15 @@ const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrai
 
 export const metadata: Metadata = {
   title: {
-    default: "Hindsight Sandbox — Agent Memory Orchestration, Open Source",
-    template: "%s · Hindsight Sandbox",
+    default: "Ray Sandbox OARC — Agent Memory Orchestration",
+    template: "%s · Ray Sandbox OARC",
   },
   description:
-    "An open-source Next.js App Router sandbox for mounting, wiring and orchestrating agent-memory apps: Memory, Prompt Engineering, Context Tuning and Continuous Learning — with Tier-1 dashboards, node graphs and benchmarks. UI-inspired by hindsight.vectorize.io.",
+    "Ray Sandbox OARC is an open-source Next.js App Router workspace for mounting, wiring and orchestrating agent-memory apps: Memory, Prompt Engineering, Context Tuning and Continuous Learning — with dashboards, node graphs and benchmarks.",
   keywords: ["agent memory", "hindsight", "orchestration", "sandbox", "nextjs", "open source", "retain recall reflect"],
   openGraph: {
-    title: "Hindsight Sandbox",
-    description: "Mount, wire and orchestrate agent-memory apps in your browser.",
+    title: "Ray Sandbox OARC",
+    description: "Mount, wire and orchestrate agent-memory apps in Ray Sandbox OARC.",
     type: "website",
   },
 };

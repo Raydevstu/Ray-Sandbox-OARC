@@ -4,13 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Database, Eye, Gauge, GraduationCap, LayoutDashboard, Search, SlidersHorizontal,
-  Sparkles, Workflow, Settings2, ChevronsLeft, ChevronsRight, Sun, Moon, Command, ExternalLink, FlaskConical, Cable,
+  BookOpen, Database, Eye, Gauge, GraduationCap, LayoutDashboard, Search, SlidersHorizontal, PanelsTopLeft,
+  Sparkles, Workflow, Settings2, ChevronsLeft, ChevronsRight, Sun, Moon, ExternalLink, FlaskConical, Cable, History, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSandbox } from "@/lib/store";
 import { ThemeSync } from "./ThemeBootstrap";
 import { CommandPalette } from "./CommandPalette";
+import { ContextBar } from "./ContextBar";
+import { OperatorStatusLine } from "./OperatorStatusLine";
 
 interface NavItem {
   href: string;
@@ -28,18 +30,23 @@ const NAV: { group: string; items: NavItem[] }[] = [
     group: "Apps",
     items: [
       { href: "/sandbox/memory", label: "Memory", icon: Database },
+      { href: "/sandbox/onboarding", label: "Getting started", icon: Sparkles },
       { href: "/sandbox/prompts", label: "Prompt Studio", icon: Sparkles },
       { href: "/sandbox/context", label: "Context Tuning", icon: SlidersHorizontal },
       { href: "/sandbox/learning", label: "Continuous Learning", icon: GraduationCap },
     ],
   },
-  {
-    group: "System",
-    items: [
+      {
+        group: "System",
+        items: [
+      { href: "/sandbox/operator", label: "Operator workspace", icon: ShieldCheck },
+      { href: "/sandbox/design-gallery", label: "Design gallery", icon: PanelsTopLeft },
       { href: "/sandbox/orchestrator", label: "Orchestrator", icon: Workflow },
       { href: "/sandbox/eval", label: "Evaluation", icon: FlaskConical },
+      { href: "/sandbox/snapshots", label: "Snapshots", icon: History },
       { href: "/sandbox/benchmarks", label: "Benchmarks", icon: Gauge },
       { href: "/sandbox/integrations", label: "Integrations", icon: Cable },
+      { href: "/sandbox/docs", label: "Docs & Guides", icon: BookOpen },
       { href: "/sandbox/settings", label: "Settings", icon: Settings2 },
     ],
   },
@@ -77,9 +84,9 @@ export default function SandboxLayout({ children }: { children: React.ReactNode 
 
       {/* ============ Sidebar ============ */}
       <aside
+        data-collapsed={collapsed ? "true" : "false"}
         className={cn(
-          "fixed inset-y-0 left-0 z-40 border-r border-border-soft bg-bg-soft flex flex-col transition-all duration-200",
-          collapsed ? "w-16" : "w-60"
+          "sandbox-sidebar fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-border-soft bg-bg-soft md:flex transition-all duration-200"
         )}
       >
         <div className={cn("h-14 flex items-center border-b border-border-soft px-3 gap-2", collapsed && "justify-center px-0")}>
@@ -89,7 +96,7 @@ export default function SandboxLayout({ children }: { children: React.ReactNode 
             </span>
             {!collapsed && (
               <span className="font-bold text-sm tracking-tight text-ink truncate">
-                Hindsight <span className="text-accent">Sandbox</span>
+                Ray <span className="text-accent">Sandbox OARC</span>
               </span>
             )}
           </Link>
@@ -168,47 +175,11 @@ export default function SandboxLayout({ children }: { children: React.ReactNode 
       </aside>
 
       {/* ============ Main ============ */}
-      <div className={cn("flex-1 flex flex-col min-w-0 transition-all duration-200", collapsed ? "ml-16" : "ml-60")}>
-        <header className="sticky top-0 z-30 h-14 glass border-b border-border-soft flex items-center gap-3 px-5">
-          <div className="flex items-center gap-2 min-w-0">
-            {current && (
-              <>
-                <current.icon size={15} className="text-accent shrink-0" />
-                <h1 className="text-sm font-semibold text-ink truncate">{current.label}</h1>
-              </>
-            )}
-          </div>
+      <div data-collapsed={collapsed ? "true" : "false"} className="sandbox-main flex-1 flex flex-col min-w-0 transition-all duration-200" style={{ paddingLeft: collapsed ? "var(--layout-rail-collapsed)" : "var(--layout-rail)" }}>
+        <ContextBar bankId={activeBankId} banks={banks} onBankChange={setActiveBank} onSearch={() => setPaletteOpen(true)} />
 
-          <div className="ml-auto flex items-center gap-2.5">
-            {/* bank switcher */}
-            <div className="hidden sm:flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-2.5 h-8">
-              <Database size={13} className="text-faint" />
-              <select
-                value={activeBankId}
-                onChange={(e) => setActiveBank(e.target.value)}
-                className="bg-transparent text-xs text-ink outline-none cursor-pointer font-medium max-w-32"
-              >
-                {banks.map((b) => (
-                  <option key={b.id} value={b.id} className="bg-surface text-ink">
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={() => setPaletteOpen(true)}
-              className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-2.5 h-8 text-xs text-faint hover:text-ink hover:border-accent-border transition-colors"
-            >
-              <Search size={13} />
-              <span className="hidden md:inline">Search or jump to…</span>
-              <span className="hidden md:flex items-center gap-0.5 ml-2">
-                <Command size={10} />K
-              </span>
-            </button>
-          </div>
-        </header>
-
-        <main className="flex-1 p-5 min-w-0">{children}</main>
+        <main className="oarc-main-canvas">{current && <h1 className="oarc-route-title"><current.icon size={15} aria-hidden="true" />{current.label}</h1>}{children}</main>
+        <OperatorStatusLine />
       </div>
     </div>
   );

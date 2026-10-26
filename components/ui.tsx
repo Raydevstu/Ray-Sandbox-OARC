@@ -185,7 +185,7 @@ export function Segmented<T extends string>({
             "rounded-md font-medium transition-all",
             size === "sm" ? "px-2 py-0.5 text-[11px]" : "px-3 py-1 text-xs",
             value === o.value
-              ? "bg-accent-soft text-accent border border-accent-border"
+              ? "bg-accent-soft text-ink border border-accent-border"
               : "text-muted hover:text-ink border border-transparent"
           )}
         >
@@ -268,6 +268,7 @@ export function Slider({
       <input
         type="range"
         className="w-full"
+        aria-label={typeof label === "string" ? label : undefined}
         min={min}
         max={max}
         step={step}
