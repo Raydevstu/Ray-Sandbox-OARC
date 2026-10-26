@@ -113,6 +113,30 @@ class GovernedSyncIntegrationTests(unittest.TestCase):
             subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
             self.assertTrue((plugin_data / "memory.sqlite3").exists())
 
+    def test_hook_writes_fixed_diagnostic_with_codex_fields(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            local_app_data = Path(folder) / "local-app-data"
+            env = dict(os.environ, LOCALAPPDATA=str(local_app_data), RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
+            event = {"hook_event_name": "UserPromptSubmit", "session_id": "codex-session", "turn_id": "codex-turn", "projectId": "p1", "prompt": "We decided to test diagnostics."}
+            subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            line = (local_app_data / "RayMemory" / "hook.log").read_text().splitlines()[-1]
+            diagnostic = json.loads(line)
+            self.assertEqual(diagnostic["eventName"], "UserPromptSubmit")
+            self.assertEqual(diagnostic["sessionId"], "codex-session")
+            self.assertEqual(diagnostic["turnId"], "codex-turn")
+
+    def test_hermes_shaped_event_captures_message(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            project = Path(folder) / "wiki"
+            project.mkdir()
+            (project / ".ray-memory.json").write_text('{"projectId":"ray-claude-wiki"}')
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
+            event = {"event": "pre_llm_call", "message": "We decided to verify Hermes memory capture.", "cwd": str(project), "session_id": "hermes-session", "turn_id": "hermes-turn"}
+            proc = subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            self.assertEqual(json.loads(proc.stdout)["status"], "extracted:decision")
+
 
 if __name__ == "__main__":
     unittest.main()

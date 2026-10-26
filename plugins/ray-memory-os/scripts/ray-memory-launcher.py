@@ -10,7 +10,16 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 if not (Path(__file__).resolve().parent / "ray_memory_os.py").exists():
     sys.path.insert(0, str(ROOT / "services" / "memory-os"))
-from ray_memory_os import capture, connect, mcp_dispatch, recall_packet, resolve_project, sync_once  # noqa: E402
+
+
+def diagnostic_log(message):
+    try:
+        root = Path(os.environ.get("LOCALAPPDATA") or (Path.home() / "AppData" / "Local")) / "RayMemory"
+        root.mkdir(parents=True, exist_ok=True)
+        with (root / "hook.log").open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(message, sort_keys=True) + "\n")
+    except Exception:
+        pass
 
 
 def send_http(payload, config):
@@ -38,13 +47,27 @@ def send_http(payload, config):
 
 
 def main():
+    raw = sys.stdin.read() or "{}"
+    try:
+        diagnostic = json.loads(raw)
+    except Exception:
+        diagnostic = {}
+    diagnostic_log({
+        "pluginRoot": str(PLUGIN_ROOT),
+        "pluginData": os.environ.get("PLUGIN_DATA", ""),
+        "eventName": diagnostic.get("hook_event_name") or diagnostic.get("eventType") or diagnostic.get("event", "unknown"),
+        "sessionId": diagnostic.get("session_id") or diagnostic.get("sessionId", ""),
+        "turnId": diagnostic.get("turn_id") or diagnostic.get("turnId", ""),
+    })
+    from ray_memory_os import capture, connect, mcp_dispatch, recall_packet, resolve_project, sync_once
+
     mode = sys.argv[1] if len(sys.argv) > 1 else "hook"
     data_root = Path(os.environ.get("PLUGIN_DATA") or (PLUGIN_ROOT / ".ray-memory"))
     db = Path(os.environ.get("RAY_MEMORY_DB") or (data_root / "memory.sqlite3"))
     db.parent.mkdir(parents=True, exist_ok=True)
     conn = connect(db)
     try:
-        message = json.loads(sys.stdin.read() or "{}")
+        message = json.loads(raw)
         if mode == "mcp":
             result = mcp_dispatch(conn, message, {"projectId": os.environ.get("RAY_MEMORY_PROJECT_ID", "")})
         elif mode == "sync":
@@ -66,8 +89,8 @@ def main():
                 message.get("projectId") or os.environ.get("RAY_MEMORY_PROJECT_ID"),
                 message.get("hostProjectId"),
             )
-            event_type = message.get("hook_event_name") or message.get("eventType") or "unknown"
-            content = message.get("content") or message.get("prompt") or message.get("last_assistant_message") or message.get("lastAssistantMessage") or ""
+            event_type = message.get("hook_event_name") or message.get("eventType") or message.get("event") or "unknown"
+            content = message.get("content") or message.get("prompt") or message.get("message") or message.get("last_assistant_message") or message.get("lastAssistantMessage") or ""
             event = {
                 **message,
                 "projectId": binding["projectId"],
