@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ray-memory-os": {
+      "command": "python",
+      "args": ["scripts/ray-memory-launcher.py", "mcp"]
+    }
+  }
+}
