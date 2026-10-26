@@ -111,3 +111,61 @@ Read this handoff, then inspect lib/types.ts, lib/runtime/repositories/interface
 - Replacing PostgreSQL with browser/local storage for Runtime mode.
 - Deleting or rewriting historical handoffs.
 
+## 2026-10-26 continuation update
+
+### Repository and runtime state
+
+- The canonical repository is `Raydevstu/Ray-Sandbox-OARC`.
+- GitHub default branch is now `main`.
+- Only two active GitHub branches remain:
+  - `main`
+  - `codex/preserve-hermes-runtime-2026-10-23`
+- Both branches point to merge commit `655c08b` (`Merge remote-tracking branch 'oarc/main' into codex/preserve-hermes-runtime-2026-10-23`).
+- The local worktree remains on `codex/preserve-hermes-runtime-2026-10-23`.
+- Preserve untracked `.firecrawl/` and `test-results/`; they are user-owned generated artifacts and were not deleted or committed.
+
+### Runtime evidence
+
+- Latest staging image was rebuilt from the current branch and is running at `http://127.0.0.1:3028`.
+- The visible app identity is `Ray Sandbox OARC — Agent Memory Orchestration`.
+- `/api/v1/health` and `/api/v1/ready` returned HTTP 200.
+- PostgreSQL staging volume was preserved.
+
+### Codex project-memory gap
+
+- `Rayclaude-wiki` has one stored `facts` row: `Rayclaude-wiki Codex memory wiring proof`, confidence `0.70`.
+- It has one `CodexConversationEvent` and one `ProjectWorkerCompleted` event with `9 ms` latency.
+- It has zero active `project_memory_records`.
+- Root cause confirmed in `lib/runtime/memory-extraction.ts`: the deterministic extractor only creates records for explicit decision, requirement, risk, blocker, or follow-up language. The captured text `Tier1 is wired to Rayclaude-wiki memory.` matches none of those rules, so capture and worker completion succeeded while extraction produced zero candidates.
+- Do not describe Codex wiring as full project-memory capture until a meaningful Codex message produces a governed, provenance-linked `project_memory_records` row.
+
+### Exact next boundary
+
+1. Add a focused regression test proving a captured Codex statement such as `We decided to keep Rayclaude-wiki on the PostgreSQL memory path` creates a governed project-memory record.
+2. Decide and implement the smallest safe extraction improvement for ordinary project statements, while preserving explicit degraded/provider states.
+3. Re-run the Rayclaude-wiki live capture path and verify event, worker completion, candidate extraction, canonical record, provenance, and readback separately.
+4. Only then continue the existing Context Tuning persistence boundary below.
+
+## 2026-10-26 Codex project-memory extraction checkpoint
+
+- `IMPLEMENTED`: the deterministic decision rule now recognizes the meaningful past-tense Codex form `decided`, preserving the existing explicit-rule, provider, and degraded-fallback boundaries.
+- `TESTED`: `tests/runtime/memory-extraction.test.ts` adds a regression for `We decided to keep Rayclaude-wiki on the PostgreSQL memory path.`; the focused related suite passed `5` files / `28` tests, and the full suite passed `114` files / `366` tests with `2` files / `6` tests skipped. Typecheck and `git diff --check` passed.
+- `LOCALLY VERIFIED`: the rebuilt Docker staging app at `http://127.0.0.1:3028` returned the intended app identity, health `200`, and readiness `200`.
+- `LOCALLY VERIFIED`: the exact `Rayclaude-wiki` staging project moved from `2` source/lifecycle events and `0` audit records to `5` events and `1` active `decision` record. The new ledger events were `CodexConversationEvent`, `ProjectMemoryRecorded`, and `ProjectWorkerCompleted`; the worker reached `processed`.
+- `LOCALLY VERIFIED`: PostgreSQL readback preserved `platform: codex`, the submitted conversation and message IDs, and `evidence: conversation` referencing the submitted message ID. This is canonical local staging evidence, not production or external live-connector evidence.
+- The original zero-record finding is resolved for meaningful past-tense decisions. Ordinary statements without a supported decision, requirement, risk, blocker, or follow-up signal remain intentionally unclassified; full automatic desktop Codex capture remains a separate boundary.
+
+### Next boundary
+
+Continue with the existing Context Tuning dedicated persistence boundary: write the failing `ContextConfig` repository test first, then implement migration, repository, route, UI hydration/save, scope isolation, and refresh persistence.
+
+## 2026-10-26 Ray Memory edge-spool sync checkpoint
+
+- `TESTED / LOCALLY VERIFIED`: the installed Ray Memory synchronizer captured one temporary redacted edge event and submitted it through the authenticated local staging Codex-event route. The edge capture moved from `queued` to `processed` in one attempt with no failure or dead-letter state.
+- `LOCALLY VERIFIED`: PostgreSQL readback for the unique marker contains the source `CodexConversationEvent`, governed `ProjectMemoryRecorded`, active decision content with redacted secret/path fields, conversation evidence, and a `complete` `codex-event-hook` job.
+- `TESTED / LOCALLY VERIFIED`: focused Codex capture/pipeline/worker/status tests passed `15/15`; `npm run staging:validate`, `npm run typecheck`, and `git diff --check` passed.
+- Evidence boundary: this proves the local installed-runtime → local Docker/PostgreSQL staging path. SQLite is only the edge spool; production, browser, external-provider, and automatic desktop-capture evidence remain unclaimed.
+
+### Next boundary
+
+Restore the repository-owned edge-spool implementation and add the missing `tests/runtime/ray-memory-edge-sync.test.ts` regression so the verified synchronizer path is reproducible from source rather than only from the installed plugin runtime.
