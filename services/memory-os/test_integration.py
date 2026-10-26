@@ -39,12 +39,79 @@ class GovernedSyncIntegrationTests(unittest.TestCase):
         root = Path(__file__).parents[2]
         with tempfile.TemporaryDirectory() as folder:
             env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
-            seed = {"eventType": "Stop", "content": "We decided to use PostgreSQL.", "projectId": "p1", "idempotencyKey": "seed-1"}
+            seed = {"hook_event_name": "Stop", "prompt": "We decided to use PostgreSQL.", "cwd": str(root), "session_id": "s1", "turn_id": "t1", "projectId": "p1", "idempotencyKey": "seed-1"}
             subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(seed), text=True, capture_output=True, env=env, check=True)
-            event = {"eventType": "UserPromptSubmit", "content": "What did we decide?", "projectId": "p1", "idempotencyKey": "prompt-1"}
+            event = {"hook_event_name": "UserPromptSubmit", "prompt": "What did we decide?", "cwd": str(root), "session_id": "s1", "turn_id": "t2", "projectId": "p1", "idempotencyKey": "prompt-1"}
             proc = subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
             result = json.loads(proc.stdout)
+            self.assertEqual(result["hookSpecificOutput"]["hookEventName"], "UserPromptSubmit")
+            self.assertIn("We decided to use PostgreSQL.", result["hookSpecificOutput"]["additionalContext"])
             self.assertLessEqual(len(result["hookSpecificOutput"]["additionalContext"]), 1800)
+
+    def test_codex_hook_manifest_uses_matcher_and_nested_command(self):
+        root = Path(__file__).parents[2]
+        manifest = json.loads((root / "plugins/ray-memory-os/hooks/hooks.json").read_text())
+        for event_name, groups in manifest["hooks"].items():
+            self.assertIsInstance(groups, list)
+            self.assertTrue(all("hooks" in group for group in groups), event_name)
+            self.assertTrue(all(group.get("matcher", ".*") == ".*" for group in groups), event_name)
+            self.assertTrue(all("type" in command and "command" in command for group in groups for command in group["hooks"]), event_name)
+
+    def test_session_start_returns_codex_hook_output(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
+            event = {"hook_event_name": "SessionStart", "cwd": str(root), "session_id": "s1", "turn_id": "t1", "projectId": "p1"}
+            proc = subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            result = json.loads(proc.stdout)
+            self.assertEqual(result["hookSpecificOutput"]["hookEventName"], "SessionStart")
+
+    def test_stop_uses_last_assistant_message(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
+            event = {"hook_event_name": "Stop", "last_assistant_message": "We decided to use PostgreSQL.", "cwd": str(root), "session_id": "s1", "turn_id": "t1", "projectId": "p1"}
+            subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            conn = connect(Path(folder) / "edge.sqlite3")
+            row = conn.execute("select content, event_type from episodes").fetchone()
+            self.assertEqual((row["content"], row["event_type"]), ("We decided to use PostgreSQL.", "Stop"))
+            conn.close()
+
+    def test_session_start_recalls_recent_memory_without_prompt(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
+            seed = {"hook_event_name": "Stop", "last_assistant_message": "We decided to use PostgreSQL.", "cwd": str(root), "session_id": "s1", "turn_id": "t1", "projectId": "p1"}
+            subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(seed), text=True, capture_output=True, env=env, check=True)
+            event = {"hook_event_name": "SessionStart", "cwd": str(root), "session_id": "s2", "turn_id": "t2", "projectId": "p1"}
+            proc = subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            result = json.loads(proc.stdout)
+            self.assertIn("We decided to use PostgreSQL.", result["hookSpecificOutput"]["additionalContext"])
+
+    def test_plugin_launcher_has_local_runtime_module(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"), PYTHONPATH=str(root / "plugins/ray-memory-os/scripts"))
+            event = {"hook_event_name": "Stop", "last_assistant_message": "We decided to use the local runtime.", "cwd": str(root), "projectId": "p1"}
+            proc = subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            self.assertEqual(json.loads(proc.stdout)["status"], "extracted:decision")
+
+    def test_hook_failure_is_fail_open_json(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
+            proc = subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input="{not-json", text=True, capture_output=True, env=env)
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(json.loads(proc.stdout), {})
+
+    def test_plugin_data_controls_default_database_location(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            plugin_data = Path(folder) / "plugin-data"
+            env = dict(os.environ, PLUGIN_DATA=str(plugin_data), RAY_MEMORY_DB="")
+            event = {"hook_event_name": "Stop", "last_assistant_message": "We decided to use plugin data.", "cwd": str(root), "projectId": "p1"}
+            subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            self.assertTrue((plugin_data / "memory.sqlite3").exists())
 
 
 if __name__ == "__main__":

@@ -1,8 +1,8 @@
 {
   "hooks": {
-    "SessionStart": [{"type": "command", "command": "python ${PLUGIN_ROOT}/scripts/ray-memory-launcher.py hook", "timeout": 10}],
-    "UserPromptSubmit": [{"type": "command", "command": "python ${PLUGIN_ROOT}/scripts/ray-memory-launcher.py hook", "timeout": 10}],
-    "PreCompact": [{"type": "command", "command": "python ${PLUGIN_ROOT}/scripts/ray-memory-launcher.py hook", "timeout": 10}],
-    "Stop": [{"type": "command", "command": "python ${PLUGIN_ROOT}/scripts/ray-memory-launcher.py hook", "timeout": 10, "async": true}]
+    "SessionStart": [{"matcher": ".*", "hooks": [{"type": "command", "command": "python3 \"${PLUGIN_ROOT}/scripts/ray-memory-launcher.py\" hook", "timeout": 10}]}],
+    "UserPromptSubmit": [{"matcher": ".*", "hooks": [{"type": "command", "command": "python3 \"${PLUGIN_ROOT}/scripts/ray-memory-launcher.py\" hook", "timeout": 10}]}],
+    "PreCompact": [{"matcher": ".*", "hooks": [{"type": "command", "command": "python3 \"${PLUGIN_ROOT}/scripts/ray-memory-launcher.py\" hook", "timeout": 10}]}],
+    "Stop": [{"matcher": ".*", "hooks": [{"type": "command", "command": "python3 \"${PLUGIN_ROOT}/scripts/ray-memory-launcher.py\" hook", "timeout": 10, "async": true}]}]
   }
 }

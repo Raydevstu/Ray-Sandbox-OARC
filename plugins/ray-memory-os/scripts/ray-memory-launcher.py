@@ -5,8 +5,11 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
+PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "services" / "memory-os"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+if not (Path(__file__).resolve().parent / "ray_memory_os.py").exists():
+    sys.path.insert(0, str(ROOT / "services" / "memory-os"))
 from ray_memory_os import capture, connect, mcp_dispatch, recall_packet, resolve_project, sync_once  # noqa: E402
 
 
@@ -36,7 +39,8 @@ def send_http(payload, config):
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "hook"
-    db = Path(os.environ.get("RAY_MEMORY_DB", str(ROOT / ".ray-memory" / "memory.sqlite3")))
+    data_root = Path(os.environ.get("PLUGIN_DATA") or (PLUGIN_ROOT / ".ray-memory"))
+    db = Path(os.environ.get("RAY_MEMORY_DB") or (data_root / "memory.sqlite3"))
     db.parent.mkdir(parents=True, exist_ok=True)
     conn = connect(db)
     try:
@@ -62,16 +66,27 @@ def main():
                 message.get("projectId") or os.environ.get("RAY_MEMORY_PROJECT_ID"),
                 message.get("hostProjectId"),
             )
-            content = message.get("content") or message.get("prompt") or message.get("lastAssistantMessage") or ""
-            event = {**message, "projectId": binding["projectId"], "content": content}
-            result = capture(conn, event)
-            if message.get("eventType") == "UserPromptSubmit":
+            event_type = message.get("hook_event_name") or message.get("eventType") or "unknown"
+            content = message.get("content") or message.get("prompt") or message.get("last_assistant_message") or message.get("lastAssistantMessage") or ""
+            event = {
+                **message,
+                "projectId": binding["projectId"],
+                "sessionId": message.get("session_id") or message.get("sessionId"),
+                "turnId": message.get("turn_id") or message.get("turnId"),
+                "eventType": event_type,
+                "content": content,
+            }
+            result = capture(conn, event) if content.strip() else {"ok": True, "status": "skipped", "project": binding["projectId"]}
+            if event_type in ("SessionStart", "UserPromptSubmit"):
                 packet = recall_packet(conn, binding["projectId"], content, 1800)
-                result["hookSpecificOutput"] = {"additionalContext": packet["text"]}
+                result["hookSpecificOutput"] = {"hookEventName": event_type, "additionalContext": packet["text"]}
         print(json.dumps(result))
     finally:
         conn.close()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        print("{}")
