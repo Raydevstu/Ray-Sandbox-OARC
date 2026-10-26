@@ -62,12 +62,20 @@ def main():
                 message.get("projectId") or os.environ.get("RAY_MEMORY_PROJECT_ID"),
                 message.get("hostProjectId"),
             )
+            event_type = message.get("hook_event_name") or message.get("eventType") or "unknown"
             content = message.get("content") or message.get("prompt") or message.get("lastAssistantMessage") or ""
-            event = {**message, "projectId": binding["projectId"], "content": content}
-            result = capture(conn, event)
-            if message.get("eventType") == "UserPromptSubmit":
+            event = {
+                **message,
+                "projectId": binding["projectId"],
+                "sessionId": message.get("session_id") or message.get("sessionId"),
+                "turnId": message.get("turn_id") or message.get("turnId"),
+                "eventType": event_type,
+                "content": content,
+            }
+            result = capture(conn, event) if content.strip() else {"ok": True, "status": "skipped", "project": binding["projectId"]}
+            if event_type in ("SessionStart", "UserPromptSubmit"):
                 packet = recall_packet(conn, binding["projectId"], content, 1800)
-                result["hookSpecificOutput"] = {"additionalContext": packet["text"]}
+                result["hookSpecificOutput"] = {"hookEventName": event_type, "additionalContext": packet["text"]}
         print(json.dumps(result))
     finally:
         conn.close()

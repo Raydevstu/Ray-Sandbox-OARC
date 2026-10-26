@@ -128,7 +128,13 @@ def sync_once(conn, sender, config, now=0):
 
 
 def recall_packet(conn, project_id, query, budget_chars=1800):
-    rows = conn.execute("select id, kind, content, status from memories where project_id=? and status='active' and (content like ? or kind like ?) order by id desc", (project_id, "%" + query + "%", "%" + query + "%")).fetchall()
+    terms = [term for term in re.findall(r"[A-Za-z0-9_]+", query.lower()) if len(term) > 2]
+    if terms:
+        predicates = " or ".join(["lower(content) like ?", "lower(kind) like ?"] * len(terms))
+        params = [value for term in terms for value in ("%" + term + "%", "%" + term + "%")]
+        rows = conn.execute(f"select id, kind, content, status from memories where project_id=? and status='active' and ({predicates}) order by id desc", (project_id, *params)).fetchall()
+    else:
+        rows = []
     lines = ["Ray Memory edge recall (non-canonical):"]
     for row in rows:
         lines.append(f"- {row['kind']} [{row['status']}] evidence_episode={row['id']}: {row['content']}")
