@@ -39,7 +39,8 @@ def send_http(payload, config):
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "hook"
-    db = Path(os.environ.get("RAY_MEMORY_DB", str(ROOT / ".ray-memory" / "memory.sqlite3")))
+    data_root = Path(os.environ.get("PLUGIN_DATA") or (PLUGIN_ROOT / ".ray-memory"))
+    db = Path(os.environ.get("RAY_MEMORY_DB") or (data_root / "memory.sqlite3"))
     db.parent.mkdir(parents=True, exist_ok=True)
     conn = connect(db)
     try:

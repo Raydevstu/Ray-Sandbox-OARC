@@ -90,7 +90,28 @@ class GovernedSyncIntegrationTests(unittest.TestCase):
 
     def test_plugin_launcher_has_local_runtime_module(self):
         root = Path(__file__).parents[2]
-        self.assertTrue((root / "plugins/ray-memory-os/scripts/ray_memory_os.py").exists())
+        with tempfile.TemporaryDirectory() as folder:
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"), PYTHONPATH=str(root / "plugins/ray-memory-os/scripts"))
+            event = {"hook_event_name": "Stop", "last_assistant_message": "We decided to use the local runtime.", "cwd": str(root), "projectId": "p1"}
+            proc = subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            self.assertEqual(json.loads(proc.stdout)["status"], "extracted:decision")
+
+    def test_hook_failure_is_fail_open_json(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
+            proc = subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input="{not-json", text=True, capture_output=True, env=env)
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(json.loads(proc.stdout), {})
+
+    def test_plugin_data_controls_default_database_location(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            plugin_data = Path(folder) / "plugin-data"
+            env = dict(os.environ, PLUGIN_DATA=str(plugin_data), RAY_MEMORY_DB="")
+            event = {"hook_event_name": "Stop", "last_assistant_message": "We decided to use plugin data.", "cwd": str(root), "projectId": "p1"}
+            subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            self.assertTrue((plugin_data / "memory.sqlite3").exists())
 
 
 if __name__ == "__main__":
