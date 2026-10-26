@@ -66,6 +66,32 @@ class GovernedSyncIntegrationTests(unittest.TestCase):
             result = json.loads(proc.stdout)
             self.assertEqual(result["hookSpecificOutput"]["hookEventName"], "SessionStart")
 
+    def test_stop_uses_last_assistant_message(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
+            event = {"hook_event_name": "Stop", "last_assistant_message": "We decided to use PostgreSQL.", "cwd": str(root), "session_id": "s1", "turn_id": "t1", "projectId": "p1"}
+            subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            conn = connect(Path(folder) / "edge.sqlite3")
+            row = conn.execute("select content, event_type from episodes").fetchone()
+            self.assertEqual((row["content"], row["event_type"]), ("We decided to use PostgreSQL.", "Stop"))
+            conn.close()
+
+    def test_session_start_recalls_recent_memory_without_prompt(self):
+        root = Path(__file__).parents[2]
+        with tempfile.TemporaryDirectory() as folder:
+            env = dict(os.environ, RAY_MEMORY_DB=str(Path(folder) / "edge.sqlite3"))
+            seed = {"hook_event_name": "Stop", "last_assistant_message": "We decided to use PostgreSQL.", "cwd": str(root), "session_id": "s1", "turn_id": "t1", "projectId": "p1"}
+            subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(seed), text=True, capture_output=True, env=env, check=True)
+            event = {"hook_event_name": "SessionStart", "cwd": str(root), "session_id": "s2", "turn_id": "t2", "projectId": "p1"}
+            proc = subprocess.run([sys.executable, str(root / "plugins/ray-memory-os/scripts/ray-memory-launcher.py"), "hook"], input=json.dumps(event), text=True, capture_output=True, env=env, check=True)
+            result = json.loads(proc.stdout)
+            self.assertIn("We decided to use PostgreSQL.", result["hookSpecificOutput"]["additionalContext"])
+
+    def test_plugin_launcher_has_local_runtime_module(self):
+        root = Path(__file__).parents[2]
+        self.assertTrue((root / "plugins/ray-memory-os/scripts/ray_memory_os.py").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

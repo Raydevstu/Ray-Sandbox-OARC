@@ -5,8 +5,11 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
+PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "services" / "memory-os"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+if not (Path(__file__).resolve().parent / "ray_memory_os.py").exists():
+    sys.path.insert(0, str(ROOT / "services" / "memory-os"))
 from ray_memory_os import capture, connect, mcp_dispatch, recall_packet, resolve_project, sync_once  # noqa: E402
 
 
@@ -63,7 +66,7 @@ def main():
                 message.get("hostProjectId"),
             )
             event_type = message.get("hook_event_name") or message.get("eventType") or "unknown"
-            content = message.get("content") or message.get("prompt") or message.get("lastAssistantMessage") or ""
+            content = message.get("content") or message.get("prompt") or message.get("last_assistant_message") or message.get("lastAssistantMessage") or ""
             event = {
                 **message,
                 "projectId": binding["projectId"],
@@ -82,4 +85,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        print("{}")

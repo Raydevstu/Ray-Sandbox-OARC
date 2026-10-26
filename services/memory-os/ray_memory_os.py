@@ -134,7 +134,7 @@ def recall_packet(conn, project_id, query, budget_chars=1800):
         params = [value for term in terms for value in ("%" + term + "%", "%" + term + "%")]
         rows = conn.execute(f"select id, kind, content, status from memories where project_id=? and status='active' and ({predicates}) order by id desc", (project_id, *params)).fetchall()
     else:
-        rows = []
+        rows = conn.execute("select id, kind, content, status from memories where project_id=? and status='active' order by id desc", (project_id,)).fetchall()
     lines = ["Ray Memory edge recall (non-canonical):"]
     for row in rows:
         lines.append(f"- {row['kind']} [{row['status']}] evidence_episode={row['id']}: {row['content']}")
