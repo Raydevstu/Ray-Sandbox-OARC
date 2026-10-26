@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "services" / "memory-os"))
-from ray_memory_os import connect, mcp_dispatch, sync_once  # noqa: E402
+from ray_memory_os import capture, connect, mcp_dispatch, recall_packet, resolve_project, sync_once  # noqa: E402
 
 
 def send_http(payload, config):
@@ -54,7 +54,20 @@ def main():
             }
             result = sync_once(conn, send_http, config)
         else:
-            result = {"ok": True, "status": "queued", "edgeOnly": True}
+            cwd = message.get("cwd") or os.environ.get("PWD") or os.getcwd()
+            binding = resolve_project(
+                conn,
+                cwd,
+                message.get("projectDisplayName"),
+                message.get("projectId") or os.environ.get("RAY_MEMORY_PROJECT_ID"),
+                message.get("hostProjectId"),
+            )
+            content = message.get("content") or message.get("prompt") or message.get("lastAssistantMessage") or ""
+            event = {**message, "projectId": binding["projectId"], "content": content}
+            result = capture(conn, event)
+            if message.get("eventType") == "UserPromptSubmit":
+                packet = recall_packet(conn, binding["projectId"], content, 1800)
+                result["hookSpecificOutput"] = {"additionalContext": packet["text"]}
         print(json.dumps(result))
     finally:
         conn.close()
