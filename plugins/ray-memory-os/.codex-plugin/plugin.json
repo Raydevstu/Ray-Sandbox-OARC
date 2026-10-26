@@ -1,0 +1,8 @@
+{
+  "name": "ray-memory-os",
+  "version": "0.1.0",
+  "description": "Bounded Ray Memory edge spool with governed synchronization.",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json",
+  "skills": "./skills/"
+}

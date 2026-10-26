@@ -1,0 +1,6 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [{"command": "python scripts/ray-memory-launcher.py hook", "timeout": 10}],
+    "Stop": [{"command": "python scripts/ray-memory-launcher.py hook", "timeout": 10, "async": true}]
+  }
+}
