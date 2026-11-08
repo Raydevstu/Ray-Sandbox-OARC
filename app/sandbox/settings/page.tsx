@@ -270,8 +270,34 @@ function BankEditor() {
   const [newBank, setNewBank] = useState(false);
   const [nbName, setNbName] = useState("");
   const [nbBg, setNbBg] = useState("");
+  const [nbPath, setNbPath] = useState("");
+  const [nbMsg, setNbMsg] = useState("");
 
   if (!bank) return null;
+
+  const createBankEverywhere = async () => {
+    const clean = nbName.trim();
+    if (!clean) return;
+    s.createBank(clean, nbBg.trim() || `I am ${clean}.`);
+    setNbMsg("Local bank created…");
+    try {
+      const res = await fetch("/api/v1/memory/banks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: clean, watchPath: nbPath.trim() || undefined }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (json?.ok) {
+        setNbMsg(`Server bank ready${json.data?.imported ? ` · ${json.data.imported} files imported` : ""}${json.data?.watching ? " · watching" : ""}.`);
+      } else {
+        setNbMsg(`Server bank skipped (${json?.error ?? res.status}). Local bank still works.`);
+      }
+    } catch {
+      setNbMsg("Server unreachable — local bank still works.");
+    }
+    setNewBank(false); setNbName(""); setNbBg(""); setNbPath("");
+    setTimeout(() => setNbMsg(""), 8000);
+  };
   return (
     <div className="space-y-4">
       <div className="grid md:grid-cols-[200px_1fr] gap-3">
@@ -289,8 +315,9 @@ function BankEditor() {
           <div className="space-y-2.5 anim-fade-up">
             <Input value={nbName} onChange={(e) => setNbName(e.target.value)} placeholder="New bank name — e.g. support-agent" className="text-xs w-64" autoFocus />
             <Textarea rows={2} value={nbBg} onChange={(e) => setNbBg(e.target.value)} placeholder="I am a … (first-person background)" className="text-xs" />
+            <Input value={nbPath} onChange={(e) => setNbPath(e.target.value)} placeholder="Docs folder — e.g. demo (under /projects)" className="text-xs w-64" />
             <div className="flex gap-2">
-              <Button size="sm" variant="primary" disabled={!nbName.trim()} onClick={() => { s.createBank(nbName.trim(), nbBg.trim() || `I am ${nbName.trim()}.`); setNewBank(false); setNbName(""); setNbBg(""); }}>
+              <Button size="sm" variant="primary" disabled={!nbName.trim()} onClick={() => void createBankEverywhere()}>
                 Create bank
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setNewBank(false)}>Cancel</Button>
@@ -303,8 +330,9 @@ function BankEditor() {
         )}
         <p className="text-[11px] text-faint mt-2">
           Banks are fully isolated: separate networks, profile Θ, directives and observation scopes. Switch with the
-          selector in the top bar.
+          selector in the top bar. A docs folder creates the server bank too and starts auto-import.
         </p>
+        {nbMsg && <p className="text-[11px] text-ink mt-1">{nbMsg}</p>}
       </div>
     </div>
   );

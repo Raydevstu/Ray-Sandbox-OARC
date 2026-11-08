@@ -31,6 +31,8 @@ services:
     build: .
     ports:
       - "3018:3000"
+    volumes:
+      - ./projects:/projects:ro
     environment:
       NODE_ENV: production
       APEX_DATABASE_URL: postgresql://hindsight:hindsight_local_only@postgres:5432/hindsight

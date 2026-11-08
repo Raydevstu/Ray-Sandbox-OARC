@@ -5,6 +5,7 @@ import { parseRuntimeConfig } from '../../../../../lib/runtime/config';
 import { apiFailure } from '../../../../../lib/runtime/api-envelope';
 import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
 import { ensureSchedulerBooted } from '../../../../../lib/server/scheduler-boot';
+import { startWatcherLoop, watcherStatus } from '../../../../../lib/server/watcher-loop';
 import { loadDistilledFacts, saveDistilledFacts, loadDecisionTraces } from '../../../../../lib/server/pg-lifecycle';
 import { supersedeFacts, decayScores } from '../../../../../lib/engine/memory-lifecycle';
 import { scoreSkills, applySkillWeights } from '../../../../../lib/engine/skill-score';
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
     const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
     const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
     ensureSchedulerBooted(tenantId, bankId);
+    if (process.env.APEX_WATCHER !== "false") startWatcherLoop();
 
     const before = await loadDistilledFacts(pool, tenantId, bankId, 500);
     const afterSupersede = supersedeFacts(before);
@@ -43,7 +45,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      data: { bankId, before: before.length, after: afterDecay.length, removed: before.length - afterDecay.length, skillWeights },
+      data: { bankId, before: before.length, after: afterDecay.length, removed: before.length - afterDecay.length, skillWeights, watcher: watcherStatus() },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'consolidate request failed';
