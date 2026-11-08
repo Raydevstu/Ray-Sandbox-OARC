@@ -7,7 +7,7 @@ function safeNum(n: unknown, fallback: number): number {
 }
 
 export function calculateImportance(
-  f: Pick<DistilledFact, "entity" | "content" | "confidence" | "occurrences" | "category">,
+  f: Pick<DistilledFact, "entity" | "content" | "confidence" | "occurrences" | "category"> & { importance?: number },
   ctx?: { recencyBoost?: number }
 ): number {
   if (!f.content || !f.content.trim()) return 5;
