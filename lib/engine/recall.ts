@@ -35,6 +35,7 @@ export interface RecallInput {
   queryTimestamp?: Date;
   filters?: FilterNode | null; // Mem0-style v2 filters applied before the arms run
   historyPolicy?: HistoryPolicy;
+  scopes?: { userId?: string; agentId?: string; appId?: string };
 }
 
 /** how budget maps to the recall budget number (fixed & adaptive modes) */
@@ -50,6 +51,19 @@ function daysBetween(a: Date, b: Date): number {
   return Math.abs(a.getTime() - b.getTime()) / 86400000;
 }
 
+export function applyEntityScoping(
+  facts: MemoryFact[],
+  scopes: { userId?: string; agentId?: string; appId?: string }
+): MemoryFact[] {
+  if (!scopes.userId && !scopes.agentId && !scopes.appId) return facts;
+  return facts.filter((f) => {
+    if (scopes.userId && f.scopes?.userId && f.scopes.userId !== scopes.userId) return false;
+    if (scopes.agentId && f.scopes?.agentId && f.scopes.agentId !== scopes.agentId) return false;
+    if (scopes.appId && f.scopes?.appId && f.scopes.appId !== scopes.appId) return false;
+    return true;
+  });
+}
+
 export function recall(input: RecallInput): RecallTrace {
   const t0 = performance.now();
   const { query, settings } = input;
@@ -58,12 +72,13 @@ export function recall(input: RecallInput): RecallTrace {
   const historyPolicy = input.historyPolicy ?? (temporalIntent === "current" ? "current" : temporalIntent === "historical" ? "historical" : "all");
   const resolvedFacts = resolveFactHistory(input.facts, historyPolicy);
   const versionBoosted = preferLatestVersion(resolvedFacts);
+  const scopedFacts = applyEntityScoping(versionBoosted, input.scopes ?? {});
 
   // pool: facts (filtered by types + v2 filters) + observations surfaced as pseudo-facts
   const filtersValid = input.filters ? validateFilters(input.filters).ok : true;
   const now0 = new Date();
   const pool: { fact: MemoryFact; observation?: Observation }[] = [];
-  for (const f of versionBoosted) {
+  for (const f of scopedFacts) {
     if (settings.types.length && !settings.types.includes(f.network)) continue;
     // TTL: expired memories are skipped unless explicitly included
     if (!settings.includeExpired && f.expiresAt && new Date(f.expiresAt) < now0) continue;
