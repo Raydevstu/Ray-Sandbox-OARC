@@ -77,12 +77,21 @@ lib/
   types.ts                # domain model (facts, observations, opinions, links, traces, filters, evals…)
   engine/
     nlp.ts                # hashed embeddings, BM25, temporal parser, entities, CE proxy
-    retain.ts             # narrative extraction + attribution/scoping + steering + auto-categories + links
-    recall.ts             # filters pre-pass → 4-arm retrieval → RRF → rerank (toggleable) → boosts → packing
+    retain.ts             # narrative extraction + attribution/scoping + steering + auto-categories + links (+ distillRetainInput)
+    recall.ts             # filters pre-pass → 4-arm retrieval → RRF → rerank (toggleable) → boosts → packing (+ distilledFacts/contextPack)
     reflect.ts            # disposition verbalization, grounded answers, opinion reinforcement
     consolidate.ts        # observations: evidence, proof counts, trends, near-dup reconciliation
-    filters.ts            # Mem0-style v2 filter DSL: evaluator + validator
+    filters.ts            # Mem0-style v2 filter DSL: evaluator + validator (+ project_id dimension)
     evaluate.ts           # benchmark runner: cutoffs, deterministic judge, token efficiency
+    investigations.ts     # session events → Investigation (task, filesTouched, tests)
+    distillation.ts       # Investigation → DistilledFact (entity/category/confidence/importance)
+    importance.ts         # 0-100 scoring, mergeDuplicates, applyAging
+    context-pack.ts       # rankFacts (keyword/entity/graph/semantic) + 1500-token buildContextPack
+    memory-lifecycle.ts   # supersedeFacts, decayScores, consolidateNightly, withProvenance
+    decision-trace.ts     # recordTrace (hashes not raw), scoreAcceptance
+    temporal-version.ts   # preferLatestVersion per entity
+    project-detector.ts   # auto-project detection from paths
+    auto-import.ts        # file monitoring with hash dedup
   data/                   # seed storyline + benchmark datasets + eval question sets (sources cited in-app)
   store.ts                # zustand + persist (v2 migration): single source of truth for the whole sandbox
 ```
@@ -91,6 +100,28 @@ lib/
 
 ### Design tokens
 Theming is driven entirely by CSS variables (`--bg`, `--surface`, `--accent`, `--world`, `--experience`, `--observation`, `--opinion`, …) exposed through Tailwind's `@theme`. The accent hue is a single `--h` variable, which is how Settings can re-skin the whole app live.
+
+---
+
+## Fusion builds (Brain-on-Top + Core 2-1-3)
+
+Additive engine layer on top of existing recall. No CanonicalRepository rewrite, no new npm deps. Full guide: [`docs/fusion-guide.md`](./docs/fusion-guide.md).
+
+**Brain-on-Top**
+- Investigations (`lib/engine/investigations.ts`): session events → Investigation. Use `buildInvestigation({ task, events })`.
+- Distillation (`lib/engine/distillation.ts`): Investigation → DistilledFact. Use `distillSession({ task, events, findings, resolution })` or `extractFacts(inv)`. Retain helper: `distillRetainInput(text, files)`.
+- Importance (`lib/engine/importance.ts`): `calculateImportance` 0-100, `mergeDuplicates` (same entity + category + overlap 0.5), `applyAging` (drops importance<15 singletons).
+- Context pack (`lib/engine/context-pack.ts`): `rankFacts(query, facts, { links, semanticWeight })`, `buildContextPack({ task, query, facts, maxTokens: 1500 })`. Hard 1500-token cap.
+- Recall wire: pass `distilledFacts` into `recall()`, read `res.contextPack`. MCP 6th tool `context_pack` takes { task, query, facts JSON }.
+
+**Core 2-1-3**
+- Lifecycle (`lib/engine/memory-lifecycle.ts`): `supersedeFacts` (contradicted facts collapse, newer wins), `decayScores` (time decay with 80-floor for high-value), `consolidateNightly(investigations)` (one domain fact with provenance), `withProvenance`.
+- Retrieval upgrade: graph +2.5 for 1-hop neighbours (cap 3, depth 1), semantic cosine*1.5 only when keyword overlap is zero so exact always wins.
+- Decision trace (`lib/engine/decision-trace.ts`): `recordTrace({ query, task, pack, model, tokens })` stores queryHash + per-item why/contentHash/length, never raw content. `scoreAcceptance(traces)` = accepted/total.
+
+**Measured on this branch**: retrieval top-1 67% → 83% (6-query probe), dedup 10→6, pack 9930→1324 tokens (87% compressed), distill 6 events→1 fact (45% smaller), supersede 2→1, stale decay 40→15 with fresh held at 100, trace 0 PII leaks. Suite 397 pass / 6 skip, tsc clean, build ok.
+
+**Project automation**: `project-detector.ts` infers project from paths and auto-creates banks, `auto-import.ts` monitors files with hash dedup (toggle in sandbox Settings), `project_id` filter dimension auto-applied with cross-project guard.
 
 ---
 
