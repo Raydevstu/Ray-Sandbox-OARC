@@ -231,6 +231,7 @@ export interface FilterNode {
   AND?: FilterNode[];
   OR?: FilterNode[];
   NOT?: FilterNode | FilterNode[];
+  project_id?: FilterValue;
   [field: string]: unknown;
 }
 

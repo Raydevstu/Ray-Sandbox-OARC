@@ -35,7 +35,7 @@ export interface RecallInput {
   queryTimestamp?: Date;
   filters?: FilterNode | null; // Mem0-style v2 filters applied before the arms run
   historyPolicy?: HistoryPolicy;
-  scopes?: { userId?: string; agentId?: string; appId?: string };
+  scopes?: { userId?: string; agentId?: string; appId?: string; projectId?: string };
 }
 
 /** how budget maps to the recall budget number (fixed & adaptive modes) */
@@ -53,13 +53,14 @@ function daysBetween(a: Date, b: Date): number {
 
 export function applyEntityScoping(
   facts: MemoryFact[],
-  scopes: { userId?: string; agentId?: string; appId?: string }
+  scopes: { userId?: string; agentId?: string; appId?: string; projectId?: string }
 ): MemoryFact[] {
-  if (!scopes.userId && !scopes.agentId && !scopes.appId) return facts;
+  if (!scopes.userId && !scopes.agentId && !scopes.appId && !scopes.projectId) return facts;
   return facts.filter((f) => {
     if (scopes.userId && f.scopes?.userId && f.scopes.userId !== scopes.userId) return false;
     if (scopes.agentId && f.scopes?.agentId && f.scopes.agentId !== scopes.agentId) return false;
     if (scopes.appId && f.scopes?.appId && f.scopes.appId !== scopes.appId) return false;
+    if (scopes.projectId && f.scopes?.projectId && f.scopes.projectId !== scopes.projectId) return false;
     return true;
   });
 }
@@ -74,15 +75,21 @@ export function recall(input: RecallInput): RecallTrace {
   const versionBoosted = preferLatestVersion(resolvedFacts);
   const scopedFacts = applyEntityScoping(versionBoosted, input.scopes ?? {});
 
+  // auto-apply project_id filter when set (cross-project contamination guard)
+  let filters: FilterNode | null = input.filters ?? null;
+  if (input.scopes?.projectId) {
+    filters = { ...(filters ?? {}), project_id: input.scopes.projectId } as FilterNode;
+  }
+
   // pool: facts (filtered by types + v2 filters) + observations surfaced as pseudo-facts
-  const filtersValid = input.filters ? validateFilters(input.filters).ok : true;
+  const filtersValid = filters ? validateFilters(filters).ok : true;
   const now0 = new Date();
   const pool: { fact: MemoryFact; observation?: Observation }[] = [];
   for (const f of scopedFacts) {
     if (settings.types.length && !settings.types.includes(f.network)) continue;
     // TTL: expired memories are skipped unless explicitly included
     if (!settings.includeExpired && f.expiresAt && new Date(f.expiresAt) < now0) continue;
-    if (filtersValid && input.filters && !matchesFilters(f, input.filters)) continue;
+    if (filtersValid && filters && !matchesFilters(f, filters)) continue;
     pool.push({ fact: f });
   }
   if (settings.types.length === 0 || settings.types.includes("observation")) {

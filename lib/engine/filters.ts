@@ -9,7 +9,7 @@
 import type { MemoryFact, FilterNode } from "@/lib/types";
 
 export const FILTER_FIELDS = [
-  "user_id", "agent_id", "app_id", "run_id",
+  "user_id", "agent_id", "app_id", "run_id", "project_id",
   "created_at", "updated_at", "timestamp", "expiration_date",
   "text", "categories", "metadata", "keywords", "memory_ids",
   "network", "tags", "confidence",
@@ -86,6 +86,7 @@ function fieldValue(fact: MemoryFact, field: string): unknown {
     case "agent_id": return fact.scopes?.agentId ?? null;
     case "app_id": return fact.scopes?.appId ?? null;
     case "run_id": return fact.scopes?.runId ?? null;
+    case "project_id": return fact.scopes?.projectId ?? null;
     case "created_at": return fact.occurredStart ?? fact.mentionedAt;
     case "updated_at": return fact.history?.length ? fact.history[fact.history.length - 1].at : fact.mentionedAt;
     case "timestamp": return fact.mentionedAt;
