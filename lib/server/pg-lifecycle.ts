@@ -122,6 +122,18 @@ export async function traceAcceptance(pool: PgPool, bankId: string): Promise<num
   return accepted / decided;
 }
 
+export async function setTraceOutcome(
+  pool: PgPool,
+  bankId: string,
+  id: string,
+  outcome: "accepted" | "edited" | "reverted"
+): Promise<void> {
+  if (outcome !== "accepted" && outcome !== "edited" && outcome !== "reverted") {
+    throw new Error(`invalid trace outcome: ${String(outcome)}`);
+  }
+  await pool.query(`UPDATE decision_traces SET outcome = $1 WHERE bank_id = $2 AND id = $3`, [outcome, bankId, id]);
+}
+
 function hashStr(text: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {

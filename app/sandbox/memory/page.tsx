@@ -944,7 +944,86 @@ function RecallPanel({
         </Card>
       )}
       <EvidenceDrawer fact={selectedEvidence} onClose={() => setSelectedEvidence(null)} />
+      <DecisionTracesPanel bankId={s.activeBankId} />
     </div>
+  );
+}
+
+/* ================= Decision traces (why-included + acceptance) ================= */
+
+type DecisionTraceItem = { entity: string; score: number; why: string; contentHash: string; contentLength: number };
+type DecisionTraceRow = {
+  id: string; queryHash: string; task: string; model: string; tokens: number;
+  items: DecisionTraceItem[]; outcome?: "accepted" | "edited" | "reverted"; createdAt: number;
+};
+
+function DecisionTracesPanel({ bankId }: { bankId: string }) {
+  const [rows, setRows] = useState<DecisionTraceRow[]>([]);
+  const [acceptance, setAcceptance] = useState(0);
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "empty" | "offline">("idle");
+
+  const load = async () => {
+    setState("loading");
+    try {
+      const res = await fetch(`/api/v1/memory/traces?bankId=${encodeURIComponent(bankId)}`, { cache: "no-store" });
+      if (!res.ok) { setState("offline"); return; }
+      const json = await res.json();
+      const traces = (json?.data?.traces ?? []) as DecisionTraceRow[];
+      setRows(traces);
+      setAcceptance(Number(json?.data?.acceptance ?? 0));
+      setState(traces.length ? "ready" : "empty");
+    } catch {
+      setState("offline");
+    }
+  };
+
+  useEffect(() => { void load(); }, [bankId]);
+
+  const mark = async (id: string, outcome: "accepted" | "edited" | "reverted") => {
+    await fetch("/api/v1/memory/traces", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ bankId, id, outcome }),
+    }).catch(() => {});
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, outcome } : r)));
+  };
+
+  return (
+    <Card>
+      <CardHeader
+        title="Decision traces"
+        subtitle={state === "ready" ? `acceptance ${Math.round(acceptance * 100)}% unedited · ${rows.length} recent` : "why each memory was included, per recall"}
+        icon={<ShieldCheck size={15} />}
+        right={<Button size="sm" variant="outline" onClick={() => void load()}><RefreshCw size={13} /> Refresh</Button>}
+      />
+      {state === "loading" && <p className="text-sm text-faint">Loading traces…</p>}
+      {state === "offline" && <Empty title="Traces unavailable" hint="PostgreSQL is not connected, so no decision traces are stored. Recall still works via localStorage." />}
+      {state === "empty" && <Empty title="No decision traces yet" hint="Run a recall against PostgreSQL (runtime mode) and each one is recorded here with per-item reasons." />}
+      {state === "ready" && (
+        <div className="space-y-2">
+          <Progress value={Math.round(acceptance * 100)} />
+          {rows.map((t) => (
+            <div key={t.id} className="rounded-lg border border-border-soft bg-surface-2 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm text-ink truncate">{t.task} <span className="text-faint">· #{t.queryHash} · {t.tokens} tokens</span></p>
+                {t.outcome ? <Badge>{t.outcome}</Badge> : (
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => void mark(t.id, "accepted")}><ThumbsUp size={12} /></Button>
+                    <Button size="sm" variant="outline" onClick={() => void mark(t.id, "edited")}><Minus size={12} /></Button>
+                    <Button size="sm" variant="outline" onClick={() => void mark(t.id, "reverted")}><ThumbsDown size={12} /></Button>
+                  </div>
+                )}
+              </div>
+              <div className="mt-2 space-y-1">
+                {t.items.slice(0, 5).map((item, i) => (
+                  <p key={i} className="text-[11px] text-faint"><span className="text-ink">{item.entity}</span> · score {item.score} · why: {item.why}</p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 
