@@ -15,7 +15,7 @@ export function withProvenance<T extends object>(
 ): T & { provenance: Provenance } {
   return {
     ...fact,
-    provenance: { createdAt: Date.now(), ...source, createdAt: source.createdAt ?? Date.now() },
+    provenance: { source: source.source, commit: source.commit, turnId: source.turnId, createdAt: source.createdAt ?? Date.now() },
   };
 }
 
