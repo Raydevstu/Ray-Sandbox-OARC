@@ -27,8 +27,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, state: 'localStorage-only', data: { bankId } });
     }
     await ensureSchema();
-    await pool.query(`INSERT INTO tenants (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`, [tenantId]);
-    await pool.query(`INSERT INTO banks (id, tenant_id) VALUES ($1, $2) ON CONFLICT (tenant_id, id) DO NOTHING`, [bankId, tenantId]);
+    await pool.query(`INSERT INTO tenants (id, created_at) VALUES ($1, NOW()) ON CONFLICT (id) DO NOTHING`, [tenantId]);
+    await pool.query(`INSERT INTO banks (id, tenant_id, created_at) VALUES ($1, $2, NOW()) ON CONFLICT (tenant_id, id) DO NOTHING`, [bankId, tenantId]);
     ensureSchedulerBooted(tenantId, bankId);
 
     let imported = 0;

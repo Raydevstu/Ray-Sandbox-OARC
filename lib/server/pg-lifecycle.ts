@@ -78,8 +78,8 @@ export function factIdFor(entity: string, content: string): string {
 }
 
 async function ensureScope(pool: PgPool, tenantId: string, bankId: string): Promise<void> {
-  await pool.query(`INSERT INTO tenants (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`, [tenantId]);
-  await pool.query(`INSERT INTO banks (id, tenant_id) VALUES ($1, $2) ON CONFLICT (tenant_id, id) DO NOTHING`, [bankId, tenantId]);
+  await pool.query(`INSERT INTO tenants (id, created_at) VALUES ($1, NOW()) ON CONFLICT (id) DO NOTHING`, [tenantId]);
+  await pool.query(`INSERT INTO banks (id, tenant_id, created_at) VALUES ($1, $2, NOW()) ON CONFLICT (tenant_id, id) DO NOTHING`, [bankId, tenantId]);
 }
 
 export async function saveDistilledFacts(pool: PgPool, tenantId: string, bankId: string, facts: StoredFact[]): Promise<void> {
@@ -87,19 +87,24 @@ export async function saveDistilledFacts(pool: PgPool, tenantId: string, bankId:
   for (const f of facts) {
     const id = factIdFor(f.entity, f.content);
     await pool.query(
-      `INSERT INTO facts (id, tenant_id, bank_id, revision, entity, category, claim, confidence, importance, occurrences)
-       VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT (tenant_id, bank_id, id) DO UPDATE SET claim = EXCLUDED.claim, confidence = EXCLUDED.confidence,
+      `INSERT INTO facts (id, tenant_id, bank_id, revision, entity, category, claim, confidence, importance, occurrences, created_at)
+       VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8, $9, NOW())
+       ON CONFLICT (tenant_id, bank_id, id, revision) DO UPDATE SET claim = EXCLUDED.claim, confidence = EXCLUDED.confidence,
          importance = EXCLUDED.importance, occurrences = EXCLUDED.occurrences, entity = EXCLUDED.entity, category = EXCLUDED.category`,
       [id, tenantId, bankId, f.entity, f.category, f.content, f.confidence, f.importance ?? 50, f.occurrences ?? 1]
     );
     if (f.provenance) {
       const evId = `ev-${id}`;
       await pool.query(
-        `INSERT INTO evidence (id, tenant_id, bank_id, fact_id, source, content, provenance)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO evidence (id, tenant_id, bank_id, source, content, provenance, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
          ON CONFLICT (tenant_id, bank_id, id) DO UPDATE SET source = EXCLUDED.source, provenance = EXCLUDED.provenance`,
-        [evId, tenantId, bankId, id, f.provenance.source, f.content.slice(0, 500), JSON.stringify(f.provenance)]
+        [evId, tenantId, bankId, f.provenance.source, f.content.slice(0, 500), JSON.stringify(f.provenance)]
+      );
+      await pool.query(
+        `INSERT INTO fact_evidence (tenant_id, bank_id, fact_id, fact_revision, evidence_id)
+         VALUES ($1, $2, $3, 1, $4) ON CONFLICT DO NOTHING`,
+        [tenantId, bankId, id, evId]
       );
     }
   }
@@ -108,7 +113,10 @@ export async function saveDistilledFacts(pool: PgPool, tenantId: string, bankId:
 export async function loadDistilledFacts(pool: PgPool, tenantId: string, bankId: string, limit = 200): Promise<StoredFact[]> {
   const { rows } = await pool.query(
     `SELECT f.entity, f.category, f.claim AS content, f.confidence, f.importance, f.occurrences,
-            (SELECT e.provenance FROM evidence e WHERE e.tenant_id = f.tenant_id AND e.bank_id = f.bank_id AND e.fact_id = f.id ORDER BY e.created_at DESC LIMIT 1) AS provenance
+            (SELECT e.provenance FROM evidence e
+             JOIN fact_evidence fe ON fe.tenant_id = e.tenant_id AND fe.bank_id = e.bank_id AND fe.evidence_id = e.id
+             WHERE fe.tenant_id = f.tenant_id AND fe.bank_id = f.bank_id AND fe.fact_id = f.id
+             ORDER BY e.created_at DESC LIMIT 1) AS provenance
      FROM facts f
      WHERE f.tenant_id = $1 AND f.bank_id = $2
        AND NOT EXISTS (SELECT 1 FROM deleted_facts d WHERE d.tenant_id = f.tenant_id AND d.bank_id = f.bank_id AND d.fact_id = f.id)
