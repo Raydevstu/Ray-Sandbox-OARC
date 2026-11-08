@@ -4,8 +4,9 @@ import { readProjectScope } from '../../../../../lib/runtime/api-handlers';
 import { parseRuntimeConfig } from '../../../../../lib/runtime/config';
 import { apiFailure } from '../../../../../lib/runtime/api-envelope';
 import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
-import { loadDistilledFacts, saveDistilledFacts } from '../../../../../lib/server/pg-lifecycle';
+import { loadDistilledFacts, saveDistilledFacts, loadDecisionTraces } from '../../../../../lib/server/pg-lifecycle';
 import { supersedeFacts, decayScores } from '../../../../../lib/engine/memory-lifecycle';
+import { scoreSkills, applySkillWeights } from '../../../../../lib/engine/skill-score';
 
 // Nightly worker endpoint: load distilled facts for a bank, collapse
 // superseded pairs, apply decay, save back. Safe to run on a schedule.
@@ -30,9 +31,17 @@ export async function POST(request: Request) {
     const afterDecay = decayScores(afterSupersede, Date.now());
     await saveDistilledFacts(pool, tenantId, bankId, afterDecay);
 
+    let skillWeights: Record<string, number> = {};
+    try {
+      const traces = await loadDecisionTraces(pool, tenantId, bankId, 200);
+      skillWeights = applySkillWeights(scoreSkills(traces), {});
+    } catch (w) {
+      console.warn("skill weight refresh failed (consolidation unaffected):", w);
+    }
+
     return NextResponse.json({
       ok: true,
-      data: { bankId, before: before.length, after: afterDecay.length, removed: before.length - afterDecay.length },
+      data: { bankId, before: before.length, after: afterDecay.length, removed: before.length - afterDecay.length, skillWeights },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'consolidate request failed';
