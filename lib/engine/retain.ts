@@ -15,6 +15,12 @@ import { countTokens, uid } from "@/lib/utils";
 import { CAUSAL_CUES, detectCausal, embed, cosine, extractDateMentions, extractEntities, tokenize } from "./nlp";
 import { deriveTemporalMetadata } from "./temporal";
 import { buildMemoryLayers } from "./layers";
+import { distillSession, type DistilledFact } from "./distillation";
+
+export function distillRetainInput(text: string, files: string[] = []): DistilledFact[] {
+  const events = files.map((file, i) => ({ type: "FILE_VIEWED", file, timestamp: i + 1 }));
+  return distillSession({ task: text.slice(0, 200), events, findings: [text.slice(0, 500)] });
+}
 
 const OPINION_CUES =
   /\b(i think|i believe|in my view|i feel|prefers?|prefer|love[sd]?|hate[sd]?|best|better|worse|should|opinion|favorite|favourite)\b/i;

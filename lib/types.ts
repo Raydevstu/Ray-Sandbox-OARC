@@ -347,6 +347,7 @@ export interface RecallTrace {
   temporalIntent?: "none" | "current" | "historical" | "event" | "plan";
   historyPolicy?: "current" | "historical" | "all";
   window: TemporalWindow | null;
+  contextPack?: { task: string; architectureFacts: string[]; previousSolutions: string[]; relevantFiles: string[]; dependencies: string[]; risks: string[]; facts: { entity: string; content: string }[]; tokensUsed: number };
   arms: {
     semantic: ArmHit[];
     bm25: ArmHit[];

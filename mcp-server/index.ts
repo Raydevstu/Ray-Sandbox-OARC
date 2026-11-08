@@ -17,6 +17,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     { name: "list_banks", description: "List all memory banks", inputSchema: { type: "object", properties: {} } },
     { name: "create_bank", description: "Create a new memory bank", inputSchema: { type: "object", properties: { name: { type: "string" }, background: { type: "string" } }, required: ["name"] } },
     { name: "reflect", description: "Reflect on stored memories", inputSchema: { type: "object", properties: { bankId: { type: "string" }, limit: { type: "number" } } } },
+    { name: "context_pack", description: "Build 1500-token distilled context pack from facts", inputSchema: { type: "object", properties: { task: { type: "string" }, query: { type: "string" }, facts: { type: "string" } }, required: ["query", "facts"] } },
   ],
 }));
 
@@ -58,6 +59,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       );
       const summary = result.rows.map((r: any) => r.text).join("; ");
       return { content: [{ type: "text", text: `Reflection over ${result.rows.length} facts: ${summary}` }] };
+    }
+    if (name === "context_pack") {
+      const raw = typeof a.facts === "string" ? JSON.parse(a.facts as string) : (a.facts as any[]);
+      const facts = (Array.isArray(raw) ? raw : []).map((f: any, i: number) => ({
+        entity: String(f.entity ?? "general"),
+        category: f.category ?? "workflow",
+        content: String(f.content ?? f.text ?? ""),
+        confidence: Number(f.confidence ?? 0.6),
+        importance: Number(f.importance ?? 50),
+        occurrences: Number(f.occurrences ?? 1),
+      }));
+      const keywords = String(a.query ?? "").toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 1);
+      const scored = facts.map((f: any) => {
+        const c = f.content.toLowerCase();
+        let overlap = 0;
+        for (const k of keywords) if (c.includes(k)) overlap++;
+        return { f, score: overlap * 3 + f.importance / 25 + f.confidence };
+      }).sort((x: any, y: any) => y.score - x.score).slice(0, 15);
+      let used = 0;
+      const packed: any[] = [];
+      for (const s of scored) {
+        const t = Math.max(1, Math.ceil(s.f.content.length / 4));
+        if (used + t > 1500) continue;
+        packed.push(s.f);
+        used += t;
+      }
+      return { content: [{ type: "text", text: JSON.stringify({ task: a.task ?? a.query, facts: packed, tokensUsed: used }) }] };
     }
     return { content: [{ type: "text", text: `Unknown tool: ${name}` }] };
   } catch (err) {

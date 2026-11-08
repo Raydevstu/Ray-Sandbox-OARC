@@ -22,6 +22,7 @@ import { bm25Score, buildBm25, crossEncoderScore, embed, cosine, extractEntities
 import { matchesFilters, validateFilters } from "./filters";
 import { classifyTemporalIntent, resolveFactHistory, type HistoryPolicy } from "./temporal";
 import { preferLatestVersion } from "./temporal-version";
+import { buildContextPack } from "./context-pack";
 import { packLayeredFacts } from "./layers";
 import { buildRecallDigest } from "./digest";
 
@@ -36,6 +37,7 @@ export interface RecallInput {
   filters?: FilterNode | null; // Mem0-style v2 filters applied before the arms run
   historyPolicy?: HistoryPolicy;
   scopes?: { userId?: string; agentId?: string; appId?: string; projectId?: string };
+  distilledFacts?: import("./distillation").DistilledFact[];
 }
 
 /** how budget maps to the recall budget number (fixed & adaptive modes) */
@@ -289,6 +291,9 @@ export function recall(input: RecallInput): RecallTrace {
     selected,
     tokensUsed: used,
     maxTokens: settings.maxTokens,
+    contextPack: input.distilledFacts && input.distilledFacts.length > 0
+      ? buildContextPack({ task: query, query, facts: input.distilledFacts, maxTokens: 1500 })
+      : undefined,
     latencyMs: Math.max(
       3,
       latency * 6 + rb * 0.05 + (reranking ? (candidates.length > 12 ? 18 : 6) + 14 : 4)
