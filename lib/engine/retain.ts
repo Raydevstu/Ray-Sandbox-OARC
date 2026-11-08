@@ -94,7 +94,7 @@ export interface RetainOptions {
   speaker?: "user" | "assistant";
   tags?: string[];
   occurredAt?: Date | null;
-  scopes?: Partial<Pick<MemoryScopes, "userId" | "agentId" | "appId" | "runId">>;
+  scopes?: Partial<Pick<MemoryScopes, "userId" | "agentId" | "appId" | "runId" | "projectId">>;
   metadata?: Record<string, string>;
   includes?: string;
   excludes?: string;
@@ -115,11 +115,12 @@ function baseScopes(opts: RetainOptions, speaker: "user" | "assistant"): MemoryS
   // attribution: extraction path assigns user_id OR agent_id per speaker;
   // app_id and run_id ride on every record.
   return {
-    userId: speaker === "user" ? opts.scopes?.userId ?? null : null,
-    agentId: speaker === "assistant" ? opts.scopes?.agentId ?? null : null,
-    appId: opts.scopes?.appId ?? null,
-    runId: opts.scopes?.runId ?? null,
-  };
+      userId: speaker === "user" ? opts.scopes?.userId ?? null : null,
+      agentId: speaker === "assistant" ? opts.scopes?.agentId ?? null : null,
+      appId: opts.scopes?.appId ?? null,
+      runId: opts.scopes?.runId ?? null,
+      projectId: opts.scopes?.projectId,
+    };
 }
 
 /** split transcript into narrative facts — coarse-grained (2–5 per exchange) */
@@ -160,6 +161,7 @@ export function extractFacts(content: string, opts: RetainOptions): { facts: Mem
             agentId: opts.scopes?.agentId ?? null,
             appId: opts.scopes?.appId ?? null,
             runId: opts.scopes?.runId ?? null,
+            projectId: opts.scopes?.projectId,
           }
         : baseScopes(opts, speaker),
       categories: assignCategories(text, catalog),

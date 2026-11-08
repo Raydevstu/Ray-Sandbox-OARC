@@ -191,6 +191,45 @@ export default function SettingsPage() {
         <BankEditor />
       </Card>
 
+      {/* ============ auto-import ============ */}
+      <Card>
+        <CardHeader title="Auto-import & project detection" subtitle="automatically detect projects and import files without manual setup" icon={<Database size={15} />} />
+        <div className="space-y-4">
+          <Toggle
+            checked={s.autoImportEnabled}
+            onChange={(v) => s.setAutoImportEnabled(v)}
+            label="Enable auto-import"
+            description="Watch a directory for new project files and auto-retain them into isolated banks."
+          />
+          <div>
+            <p className="text-xs text-muted mb-1.5">Watch directory path</p>
+            <Input
+              value={s.autoImportPath}
+              onChange={(e) => s.setAutoImportPath(e.target.value)}
+              placeholder="e.g. ~/.hermes/projects or D:/Projects"
+              className="text-xs"
+            />
+            <p className="text-[11px] text-faint mt-1">Files in this directory will be auto-imported when auto-import is enabled. Leave empty to disable.</p>
+          </div>
+          {s.detectedProject && (
+            <div className="rounded-xl border border-accent/30 bg-accent/5 p-3">
+              <p className="text-xs font-medium text-ink">Detected project: {s.detectedProject}</p>
+              <p className="text-[11px] text-muted mt-0.5">New facts will be routed to this project's bank automatically.</p>
+            </div>
+          )}
+          {Object.keys(s.projectBanks).length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-faint mb-1">Project banks</p>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(s.projectBanks).map(([name, id]) => (
+                  <span key={name} className="chip text-[10px]">{name} → {id}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
       {/* ============ about ============ */}
       <Card>
         <CardHeader title="About" icon={<Settings2 size={15} />} />

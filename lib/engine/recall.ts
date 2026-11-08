@@ -57,10 +57,18 @@ export function applyEntityScoping(
 ): MemoryFact[] {
   if (!scopes.userId && !scopes.agentId && !scopes.appId && !scopes.projectId) return facts;
   return facts.filter((f) => {
-    if (scopes.userId && f.scopes?.userId && f.scopes.userId !== scopes.userId) return false;
-    if (scopes.agentId && f.scopes?.agentId && f.scopes.agentId !== scopes.agentId) return false;
-    if (scopes.appId && f.scopes?.appId && f.scopes.appId !== scopes.appId) return false;
-    if (scopes.projectId && f.scopes?.projectId && f.scopes.projectId !== scopes.projectId) return false;
+    if (scopes.userId) {
+      if (!f.scopes?.userId || f.scopes.userId !== scopes.userId) return false;
+    }
+    if (scopes.agentId) {
+      if (!f.scopes?.agentId || f.scopes.agentId !== scopes.agentId) return false;
+    }
+    if (scopes.appId) {
+      if (!f.scopes?.appId || f.scopes.appId !== scopes.appId) return false;
+    }
+    if (scopes.projectId) {
+      if (!f.scopes?.projectId || f.scopes.projectId !== scopes.projectId) return false;
+    }
     return true;
   });
 }

@@ -166,7 +166,7 @@ function seedMetrics(): AppMetrics[] {
 
 export interface RetainOpts {
   tags?: string[];
-  scopes?: Partial<Pick<MemoryScopes, "userId" | "agentId" | "appId" | "runId">>;
+  scopes?: Partial<Pick<MemoryScopes, "userId" | "agentId" | "appId" | "runId" | "projectId">>;
   includes?: string;
   excludes?: string;
   customInstructions?: string;
@@ -205,10 +205,20 @@ export interface SandboxState {
   integrationEvents: CanonicalIntegrationEvent[];
   feedbackRecords: FeedbackRecord[];
   offlineQueue: OfflineQueueEntry[];
+  autoImportEnabled: boolean;
+  autoImportPath: string;
+  projectBanks: Record<string, string>; // projectName -> bankId
+  detectedProject: string | null;
+  importedFileHashes: string[];
 
   // actions
   setHydrated: () => void;
   setActiveBank: (id: string) => void;
+  setAutoImportEnabled: (enabled: boolean) => void;
+  setAutoImportPath: (path: string) => void;
+  registerProjectBank: (projectName: string, bankId: string) => void;
+  setDetectedProject: (name: string | null) => void;
+  addImportedFileHash: (hash: string) => void;
   createBank: (name: string, background: string) => string;
   updateBank: (id: string, patch: Partial<Bank>) => void;
   updateBankCategories: (bankId: string, cats: CategoryDef[]) => void;
@@ -227,7 +237,7 @@ export interface SandboxState {
   batchUpdateFacts: (ids: string[], patch: { tags?: string[]; categories?: string[]; note?: string }) => number;
   toggleImmutable: (id: string) => void;
   deleteFact: (id: string) => void;
-  deleteScoped: (scope: Partial<Pick<MemoryScopes, "userId" | "agentId" | "appId" | "runId">>) => number;
+  deleteScoped: (scope: Partial<Pick<MemoryScopes, "userId" | "agentId" | "appId" | "runId" | "projectId">>) => number;
   runConsolidation: () => { created: number; updated: number; merged: number };
   addOpinion: (o: { text: string; confidence: number; reasoning: string; entities: string[] }) => void;
   reinforce: (opinionId: string, assessment: "reinforce" | "weaken" | "contradict", note?: string) => void;
@@ -391,8 +401,21 @@ export const useSandbox = create<SandboxState>()(
       feedbackRecords: [],
       offlineQueue: [],
 
+      autoImportEnabled: false,
+      autoImportPath: "",
+      projectBanks: {},
+      detectedProject: null,
+      importedFileHashes: [],
+
       setHydrated: () => set({ hydrated: true }),
       setActiveBank: (id) => set({ activeBankId: id }),
+      setAutoImportEnabled: (enabled) => set({ autoImportEnabled: enabled }),
+      setAutoImportPath: (path) => set({ autoImportPath: path }),
+      registerProjectBank: (projectName, bankId) =>
+        set((s) => ({ projectBanks: { ...s.projectBanks, [projectName]: bankId } })),
+      setDetectedProject: (name) => set({ detectedProject: name }),
+      addImportedFileHash: (hash) =>
+        set((s) => ({ importedFileHashes: [...s.importedFileHashes, hash] })),
 
       createBank: (name, background) => {
         const id = uid("bank");
@@ -1087,6 +1110,11 @@ export const useSandbox = create<SandboxState>()(
         state.integrationEvents = state.integrationEvents ?? [];
         state.feedbackRecords = state.feedbackRecords ?? [];
         state.offlineQueue = state.offlineQueue ?? [];
+        state.autoImportEnabled = state.autoImportEnabled ?? false;
+        state.autoImportPath = state.autoImportPath ?? "";
+        state.projectBanks = state.projectBanks ?? {};
+        state.detectedProject = state.detectedProject ?? null;
+        state.importedFileHashes = state.importedFileHashes ?? [];
         if (version < 2) {
           state.facts = (state.facts ?? []).map((f) => ({
             ...f,

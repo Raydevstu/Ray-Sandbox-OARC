@@ -15,20 +15,25 @@ export async function POST(request: Request) {
 
     const pool = getPgPool();
     if (pool) {
-      await ensureSchema();
-      const body = await request.json().catch(() => ({}));
-      const content = String(body?.content ?? '');
-      const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
-      const scopes = body?.scopes ?? {};
-      const tags = Array.isArray(body?.tags) ? body.tags : [];
-      const entities = Array.isArray(body?.entities) ? body.entities : [];
-      const factId = `fact-${Date.now()}`;
-      await pool.query(
-        `INSERT INTO memory_facts (id, bank_id, text, network, confidence, scopes, tags, entities)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [factId, bankId, content, "world", 0.8, JSON.stringify(scopes), tags, entities]
-      );
-      return NextResponse.json({ ok: true, data: { fact: { id: factId } } });
+      try {
+        await ensureSchema();
+        const body = await request.json().catch(() => ({}));
+        const content = String(body?.content ?? '');
+        const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
+        const scopes = body?.scopes ?? {};
+        const tags = Array.isArray(body?.tags) ? body.tags : [];
+        const entities = Array.isArray(body?.entities) ? body.entities : [];
+        const factId = `fact-${Date.now()}`;
+        await pool.query(
+          `INSERT INTO memory_facts (id, bank_id, text, network, confidence, scopes, tags, entities)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [factId, bankId, content, "world", 0.8, JSON.stringify(scopes), tags, entities]
+        );
+        return NextResponse.json({ ok: true, data: { fact: { id: factId } } });
+      } catch (pgError) {
+        // PostgreSQL unreachable — fall back to localStorage
+        console.warn('PostgreSQL unavailable, falling back to localStorage:', pgError);
+      }
     }
 
     if (!isRuntimeStoreConfigured()) {

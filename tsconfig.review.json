@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "tests/e2e/audit-memory.spec.ts", "tests/e2e/audit-temporal.spec.ts", "tests/e2e/audit-btns.spec.ts", "tests/e2e/audit-check.spec.ts", "tests/e2e/audit-debug.spec.ts", "tests/e2e/audit-err.spec.ts", "tests/e2e/audit-explore.spec.ts", "tests/e2e/audit-hydrate.spec.ts", "tests/e2e/audit-longwait.spec.ts", "tests/e2e/audit-recall-explore.spec.ts", "tests/e2e/audit-recall-ui.spec.ts", "tests/e2e/audit-script.spec.ts", "tests/e2e/audit-seeded3.spec.ts", "tests/e2e/audit-tm046.spec.ts"]
+}
