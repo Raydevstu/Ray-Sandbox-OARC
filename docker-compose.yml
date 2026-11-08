@@ -33,7 +33,7 @@ services:
       - "3018:3000"
     volumes:
       - ./projects:/projects:ro
-      - ${HERMES_STATE_DB:-/dev/null}:/hermes-state.db:ro
+      - ./.data/hermes-empty.db:/hermes-state.db:ro
     environment:
       NODE_ENV: production
       APEX_DATABASE_URL: postgresql://hindsight:hindsight_local_only@postgres:5432/hindsight
