@@ -22,12 +22,13 @@ export async function POST(request: Request) {
     }
     await ensureSchema();
     const body = await request.json().catch(() => ({}));
+    const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
     const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
 
-    const before = await loadDistilledFacts(pool, bankId, 500);
+    const before = await loadDistilledFacts(pool, tenantId, bankId, 500);
     const afterSupersede = supersedeFacts(before);
     const afterDecay = decayScores(afterSupersede, Date.now());
-    await saveDistilledFacts(pool, bankId, afterDecay);
+    await saveDistilledFacts(pool, tenantId, bankId, afterDecay);
 
     return NextResponse.json({
       ok: true,

@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       try {
         await ensureSchema();
         const body = await request.json().catch(() => ({}));
+        const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
         const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
         const scopes = body?.scopes ?? {};
         const limit = typeof body?.limit === 'number' ? body.limit : (typeof body?.maxTokens === 'number' ? Math.floor(body.maxTokens / 100) : 20);
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
             model: 'pg',
             tokens: packFacts.length * 25,
           });
-          await saveDecisionTrace(pool, bankId, trace);
+          await saveDecisionTrace(pool, tenantId, bankId, trace);
         } catch (traceError) {
           console.warn('decision trace write failed (recall unaffected):', traceError);
         }

@@ -20,9 +20,10 @@ export async function GET(request: Request) {
     }
     await ensureSchema();
     const url = new URL(request.url);
+    const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
     const bankId = url.searchParams.get('bankId') ?? scope.bankId ?? 'default';
-    const traces = await loadDecisionTraces(pool, bankId, 20);
-    const acceptance = await traceAcceptance(pool, bankId);
+    const traces = await loadDecisionTraces(pool, tenantId, bankId, 20);
+    const acceptance = await traceAcceptance(pool, tenantId, bankId);
     return NextResponse.json({ ok: true, data: { traces, acceptance } });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'traces request failed';
@@ -44,8 +45,9 @@ export async function POST(request: Request) {
     }
     await ensureSchema();
     const body = await request.json().catch(() => ({}));
+    const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
     const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
-    await setTraceOutcome(pool, bankId, String(body?.id ?? ''), body?.outcome);
+    await setTraceOutcome(pool, tenantId, bankId, String(body?.id ?? ''), body?.outcome);
     return NextResponse.json({ ok: true, data: { id: body?.id, outcome: body?.outcome } });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'trace outcome request failed';

@@ -21,29 +21,32 @@ function fakePool(rows: any[] = []) {
 }
 
 describe("pg lifecycle store", () => {
-  it("DDL covers distilled facts and decision traces", () => {
-    expect(DISTILLED_FACTS_DDL).toMatch(/distilled_facts/);
-    expect(DISTILLED_FACTS_DDL).toMatch(/provenance/);
+  it("DDL covers canonical facts, evidence, tombstones and traces", () => {
+    expect(DISTILLED_FACTS_DDL).toMatch(/CREATE TABLE IF NOT EXISTS facts/);
+    expect(DISTILLED_FACTS_DDL).toMatch(/CREATE TABLE IF NOT EXISTS evidence/);
+    expect(DISTILLED_FACTS_DDL).toMatch(/deleted_facts/);
     expect(DECISION_TRACES_DDL).toMatch(/decision_traces/);
     expect(DECISION_TRACES_DDL).toMatch(/query_hash/);
   });
 
-  it("saves distilled facts with provenance JSONB", async () => {
+  it("saves distilled facts to canonical facts table", async () => {
     const pool: any = fakePool();
-    await saveDistilledFacts(pool, "bank1", [
+    await saveDistilledFacts(pool, "t1", "bank1", [
       { entity: "AuthService", category: "workflow", content: "x", confidence: 0.9, importance: 85, occurrences: 2 },
     ]);
-    expect(pool.seen.length).toBe(1);
-    expect(pool.seen[0].text).toMatch(/INSERT INTO distilled_facts/);
-    expect(pool.seen[0].params[1]).toBe("bank1");
-    expect(pool.seen[0].params[2]).toBe("AuthService");
+    const insert = pool.seen.find((s: any) => /INSERT INTO facts/i.test(s.text));
+    expect(insert).toBeDefined();
+    expect(insert.params[0]).toMatch(/^df-authservice-/);
+    expect(insert.params[1]).toBe("t1");
+    expect(insert.params[2]).toBe("bank1");
   });
 
   it("loads distilled facts back into shape", async () => {
     const pool: any = fakePool([
       { entity: "AuthService", category: "workflow", content: "x", confidence: 0.9, importance: 85, occurrences: 2, provenance: { source: "nightly", createdAt: 1 } },
     ]);
-    const facts = await loadDistilledFacts(pool, "bank1");
+    const facts = await loadDistilledFacts(pool, "t1", "bank1");
+    expect(pool.seen[0].text).toMatch(/FROM facts/i);
     expect(facts.length).toBe(1);
     expect(facts[0].entity).toBe("AuthService");
     expect((facts[0] as any).provenance.source).toBe("nightly");
@@ -51,7 +54,7 @@ describe("pg lifecycle store", () => {
 
   it("saves decision trace without raw content", async () => {
     const pool: any = fakePool();
-    await saveDecisionTrace(pool, "bank1", {
+    await saveDecisionTrace(pool, "t1", "bank1", {
       id: "t1", queryHash: "ab12", task: "fix login", model: "local", tokens: 10,
       items: [{ entity: "AuthService", score: 5, why: "keyword+2", contentHash: "ff", contentLength: 9 }],
       createdAt: 1,
@@ -63,11 +66,11 @@ describe("pg lifecycle store", () => {
 
   it("acceptance rate counts accepted over decided", async () => {
     const pool: any = fakePool([{ accepted: 2, decided: 3 }]);
-    expect(await traceAcceptance(pool, "bank1")).toBeCloseTo(0.66, 1);
+    expect(await traceAcceptance(pool, "t1", "bank1")).toBeCloseTo(0.66, 1);
   });
 
   it("acceptance is 0 when no traces", async () => {
     const pool: any = fakePool([{ accepted: 0, decided: 0 }]);
-    expect(await traceAcceptance(pool, "bank1")).toBe(0);
+    expect(await traceAcceptance(pool, "t1", "bank1")).toBe(0);
   });
 });

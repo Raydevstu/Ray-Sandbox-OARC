@@ -7,27 +7,58 @@ export interface PgPool {
 }
 
 export const DISTILLED_FACTS_DDL = `
-  CREATE TABLE IF NOT EXISTS distilled_facts (
+  CREATE TABLE IF NOT EXISTS tenants (
     id TEXT PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE TABLE IF NOT EXISTS banks (
+    id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL REFERENCES tenants(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (tenant_id, id)
+  );
+  CREATE TABLE IF NOT EXISTS facts (
+    id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
     bank_id TEXT NOT NULL,
-    entity TEXT NOT NULL,
-    category TEXT NOT NULL,
-    content TEXT NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 1,
+    entity TEXT NOT NULL DEFAULT 'general',
+    category TEXT NOT NULL DEFAULT 'workflow',
+    claim TEXT NOT NULL,
     confidence REAL NOT NULL DEFAULT 0.5,
     importance REAL NOT NULL DEFAULT 50,
     occurrences INTEGER NOT NULL DEFAULT 1,
-    provenance JSONB NOT NULL DEFAULT '{}',
-    superseded_by TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    PRIMARY KEY (tenant_id, bank_id, id),
+    FOREIGN KEY (tenant_id, bank_id) REFERENCES banks(tenant_id, id)
   );
-  CREATE INDEX IF NOT EXISTS idx_distilled_facts_bank ON distilled_facts(bank_id);
-  CREATE INDEX IF NOT EXISTS idx_distilled_facts_entity ON distilled_facts(entity);
+  CREATE INDEX IF NOT EXISTS idx_facts_entity ON facts(tenant_id, bank_id, entity);
+  CREATE TABLE IF NOT EXISTS evidence (
+    id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    bank_id TEXT NOT NULL,
+    fact_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    content TEXT NOT NULL,
+    provenance TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (tenant_id, bank_id, id),
+    FOREIGN KEY (tenant_id, bank_id) REFERENCES banks(tenant_id, id)
+  );
+  CREATE TABLE IF NOT EXISTS deleted_facts (
+    tenant_id TEXT NOT NULL,
+    bank_id TEXT NOT NULL,
+    fact_id TEXT NOT NULL,
+    superseded_by TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (tenant_id, bank_id, fact_id)
+  );
 `;
 
 export const DECISION_TRACES_DDL = `
   CREATE TABLE IF NOT EXISTS decision_traces (
     id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL DEFAULT 'sandbox-tenant',
     bank_id TEXT NOT NULL,
     query_hash TEXT NOT NULL,
     task TEXT NOT NULL,
@@ -37,65 +68,89 @@ export const DECISION_TRACES_DDL = `
     outcome TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
-  CREATE INDEX IF NOT EXISTS idx_decision_traces_bank ON decision_traces(bank_id);
+  CREATE INDEX IF NOT EXISTS idx_decision_traces_bank ON decision_traces(tenant_id, bank_id);
 `;
 
 export type StoredFact = DistilledFact & { provenance?: Provenance };
 
-export async function saveDistilledFacts(pool: PgPool, bankId: string, facts: StoredFact[]): Promise<void> {
+export function factIdFor(entity: string, content: string): string {
+  return `df-${entity.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.abs(hashStr(entity + "|" + content)).toString(36)}`;
+}
+
+async function ensureScope(pool: PgPool, tenantId: string, bankId: string): Promise<void> {
+  await pool.query(`INSERT INTO tenants (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`, [tenantId]);
+  await pool.query(`INSERT INTO banks (id, tenant_id) VALUES ($1, $2) ON CONFLICT (tenant_id, id) DO NOTHING`, [bankId, tenantId]);
+}
+
+export async function saveDistilledFacts(pool: PgPool, tenantId: string, bankId: string, facts: StoredFact[]): Promise<void> {
+  await ensureScope(pool, tenantId, bankId);
   for (const f of facts) {
-    const id = `df-${f.entity.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.abs(hashStr(f.content)).toString(36)}`;
+    const id = factIdFor(f.entity, f.content);
     await pool.query(
-      `INSERT INTO distilled_facts (id, bank_id, entity, category, content, confidence, importance, occurrences, provenance, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-       ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, confidence = EXCLUDED.confidence,
-         importance = EXCLUDED.importance, occurrences = EXCLUDED.occurrences,
-         provenance = EXCLUDED.provenance, updated_at = NOW()`,
-      [id, bankId, f.entity, f.category, f.content, f.confidence, f.importance ?? 50, f.occurrences ?? 1, JSON.stringify(f.provenance ?? {})]
+      `INSERT INTO facts (id, tenant_id, bank_id, revision, entity, category, claim, confidence, importance, occurrences)
+       VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (tenant_id, bank_id, id) DO UPDATE SET claim = EXCLUDED.claim, confidence = EXCLUDED.confidence,
+         importance = EXCLUDED.importance, occurrences = EXCLUDED.occurrences, entity = EXCLUDED.entity, category = EXCLUDED.category`,
+      [id, tenantId, bankId, f.entity, f.category, f.content, f.confidence, f.importance ?? 50, f.occurrences ?? 1]
+    );
+    if (f.provenance) {
+      const evId = `ev-${id}`;
+      await pool.query(
+        `INSERT INTO evidence (id, tenant_id, bank_id, fact_id, source, content, provenance)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (tenant_id, bank_id, id) DO UPDATE SET source = EXCLUDED.source, provenance = EXCLUDED.provenance`,
+        [evId, tenantId, bankId, id, f.provenance.source, f.content.slice(0, 500), JSON.stringify(f.provenance)]
+      );
+    }
+  }
+}
+
+export async function loadDistilledFacts(pool: PgPool, tenantId: string, bankId: string, limit = 200): Promise<StoredFact[]> {
+  const { rows } = await pool.query(
+    `SELECT f.entity, f.category, f.claim AS content, f.confidence, f.importance, f.occurrences,
+            (SELECT e.provenance FROM evidence e WHERE e.tenant_id = f.tenant_id AND e.bank_id = f.bank_id AND e.fact_id = f.id ORDER BY e.created_at DESC LIMIT 1) AS provenance
+     FROM facts f
+     WHERE f.tenant_id = $1 AND f.bank_id = $2
+       AND NOT EXISTS (SELECT 1 FROM deleted_facts d WHERE d.tenant_id = f.tenant_id AND d.bank_id = f.bank_id AND d.fact_id = f.id)
+     ORDER BY f.importance DESC LIMIT $3`,
+    [tenantId, bankId, limit]
+  );
+  return rows.map((r) => ({
+    entity: r.entity ?? "general",
+    category: r.category ?? "workflow",
+    content: r.content,
+    confidence: Number(r.confidence),
+    importance: Number(r.importance ?? 50),
+    occurrences: Number(r.occurrences ?? 1),
+    provenance: r.provenance ? (typeof r.provenance === "string" ? JSON.parse(r.provenance) : r.provenance) : undefined,
+  }));
+}
+
+export async function markSuperseded(pool: PgPool, tenantId: string, bankId: string, entity: string, supersededBy: string): Promise<void> {
+  const { rows } = await pool.query(`SELECT id FROM facts WHERE tenant_id = $1 AND bank_id = $2 AND entity = $3`, [tenantId, bankId, entity]);
+  for (const r of rows) {
+    await pool.query(
+      `INSERT INTO deleted_facts (tenant_id, bank_id, fact_id, superseded_by) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (tenant_id, bank_id, fact_id) DO UPDATE SET superseded_by = EXCLUDED.superseded_by`,
+      [tenantId, bankId, r.id, supersededBy]
     );
   }
 }
 
-export async function loadDistilledFacts(pool: PgPool, bankId: string, limit = 200): Promise<StoredFact[]> {
-  const { rows } = await pool.query(
-    `SELECT entity, category, content, confidence, importance, occurrences, provenance
-     FROM distilled_facts WHERE bank_id = $1 AND superseded_by IS NULL
-     ORDER BY importance DESC, updated_at DESC LIMIT $2`,
-    [bankId, limit]
-  );
-  return rows.map((r) => ({
-    entity: r.entity,
-    category: r.category,
-    content: r.content,
-    confidence: Number(r.confidence),
-    importance: Number(r.importance),
-    occurrences: Number(r.occurrences),
-    provenance: typeof r.provenance === "string" ? JSON.parse(r.provenance) : (r.provenance ?? {}),
-  }));
-}
-
-export async function markSuperseded(pool: PgPool, bankId: string, entity: string, supersededBy: string): Promise<void> {
+export async function saveDecisionTrace(pool: PgPool, tenantId: string, bankId: string, trace: DecisionTrace): Promise<void> {
   await pool.query(
-    `UPDATE distilled_facts SET superseded_by = $3, updated_at = NOW()
-     WHERE bank_id = $1 AND entity = $2 AND superseded_by IS NULL`,
-    [bankId, entity, supersededBy]
-  );
-}
-
-export async function saveDecisionTrace(pool: PgPool, bankId: string, trace: DecisionTrace): Promise<void> {
-  await pool.query(
-    `INSERT INTO decision_traces (id, bank_id, query_hash, task, model, tokens, items, outcome)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO decision_traces (id, tenant_id, bank_id, query_hash, task, model, tokens, items, outcome)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (id) DO UPDATE SET outcome = EXCLUDED.outcome`,
-    [trace.id, bankId, trace.queryHash, trace.task, trace.model, trace.tokens, JSON.stringify(trace.items), trace.outcome ?? null]
+    [trace.id, tenantId, bankId, trace.queryHash, trace.task, trace.model, trace.tokens, JSON.stringify(trace.items), trace.outcome ?? null]
   );
 }
 
-export async function loadDecisionTraces(pool: PgPool, bankId: string, limit = 50): Promise<DecisionTrace[]> {
+export async function loadDecisionTraces(pool: PgPool, tenantId: string, bankId: string, limit = 50): Promise<DecisionTrace[]> {
   const { rows } = await pool.query(
     `SELECT id, query_hash, task, model, tokens, items, outcome, created_at
-     FROM decision_traces WHERE bank_id = $1 ORDER BY created_at DESC LIMIT $2`,
-    [bankId, limit]
+     FROM decision_traces WHERE tenant_id = $1 AND bank_id = $2 ORDER BY created_at DESC LIMIT $3`,
+    [tenantId, bankId, limit]
   );
   return rows.map((r) => ({
     id: r.id,
@@ -109,12 +164,12 @@ export async function loadDecisionTraces(pool: PgPool, bankId: string, limit = 5
   }));
 }
 
-export async function traceAcceptance(pool: PgPool, bankId: string): Promise<number> {
+export async function traceAcceptance(pool: PgPool, tenantId: string, bankId: string): Promise<number> {
   const { rows } = await pool.query(
     `SELECT COUNT(*) FILTER (WHERE outcome = 'accepted') AS accepted,
             COUNT(*) FILTER (WHERE outcome IN ('accepted','edited','reverted')) AS decided
-     FROM decision_traces WHERE bank_id = $1`,
-    [bankId]
+     FROM decision_traces WHERE tenant_id = $1 AND bank_id = $2`,
+    [tenantId, bankId]
   );
   const accepted = Number(rows[0]?.accepted ?? 0);
   const decided = Number(rows[0]?.decided ?? 0);
@@ -124,6 +179,7 @@ export async function traceAcceptance(pool: PgPool, bankId: string): Promise<num
 
 export async function setTraceOutcome(
   pool: PgPool,
+  tenantId: string,
   bankId: string,
   id: string,
   outcome: "accepted" | "edited" | "reverted"
@@ -131,7 +187,7 @@ export async function setTraceOutcome(
   if (outcome !== "accepted" && outcome !== "edited" && outcome !== "reverted") {
     throw new Error(`invalid trace outcome: ${String(outcome)}`);
   }
-  await pool.query(`UPDATE decision_traces SET outcome = $1 WHERE bank_id = $2 AND id = $3`, [outcome, bankId, id]);
+  await pool.query(`UPDATE decision_traces SET outcome = $1 WHERE tenant_id = $2 AND bank_id = $3 AND id = $4`, [outcome, tenantId, bankId, id]);
 }
 
 function hashStr(text: string): number {
