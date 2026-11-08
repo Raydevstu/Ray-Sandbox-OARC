@@ -7,6 +7,8 @@ import { createRecallProfiler } from '../../../../../lib/runtime/recall-profilin
 import { createRecallScheduler, recallConcurrencyFromEnv } from '../../../../../lib/runtime/recall-scheduler';
 import { apiFailure } from '../../../../../lib/runtime/api-envelope';
 import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
+import { saveDecisionTrace } from '../../../../../lib/server/pg-lifecycle';
+import { recordTrace } from '../../../../../lib/engine/decision-trace';
 
 const recallScheduler = createRecallScheduler(recallConcurrencyFromEnv(process.env));
 
@@ -41,6 +43,26 @@ export async function POST(request: Request) {
           `SELECT * FROM memory_facts WHERE ${conditions.join(' AND ')} ORDER BY mentioned_at DESC LIMIT $${idx}`,
           params
         );
+        try {
+          const packFacts = result.rows.map((r: any) => ({
+            entity: (Array.isArray(r.entities) && r.entities[0]) || 'general',
+            category: 'workflow' as const,
+            content: `fact ${String(r.id ?? '')}`.slice(0, 32),
+            confidence: Number(r.confidence ?? 0.5),
+            importance: 50,
+            occurrences: 1,
+          }));
+          const trace = recordTrace({
+            query: String(body?.query ?? ''),
+            task: `pg-recall:${bankId}`,
+            pack: { task: bankId, architectureFacts: [], previousSolutions: [], relevantFiles: [], dependencies: [], risks: [], facts: packFacts, tokensUsed: packFacts.length * 25 },
+            model: 'pg',
+            tokens: packFacts.length * 25,
+          });
+          await saveDecisionTrace(pool, bankId, trace);
+        } catch (traceError) {
+          console.warn('decision trace write failed (recall unaffected):', traceError);
+        }
         return NextResponse.json({ ok: true, data: { facts: result.rows, traceId: `pg-${Date.now()}` } });
       } catch (pgError) {
         console.warn('PostgreSQL unavailable, falling back to localStorage:', pgError);

@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { DISTILLED_FACTS_DDL, DECISION_TRACES_DDL } from "./pg-lifecycle";
 
 let pool: Pool | null = null;
 
@@ -30,4 +31,6 @@ export async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_memory_facts_bank ON memory_facts(bank_id);
     CREATE INDEX IF NOT EXISTS idx_memory_facts_scopes ON memory_facts USING GIN (scopes);
   `);
+  await p.query(DISTILLED_FACTS_DDL);
+  await p.query(DECISION_TRACES_DDL);
 }
