@@ -230,6 +230,12 @@ export default function SettingsPage() {
         </div>
       </Card>
 
+      {/* ============ hermes auto-sync ============ */}
+      <Card>
+        <CardHeader title="Hermes auto-sync" subtitle="one click — chats flow into banks with no paths or config" icon={<Database size={15} />} />
+        <HermesConnect />
+      </Card>
+
       {/* ============ about ============ */}
       <Card>
         <CardHeader title="About" icon={<Settings2 size={15} />} />
@@ -336,6 +342,72 @@ function BankEditor() {
         </p>
         {nbMsg && <p className="text-[11px] text-ink mt-1">{nbMsg}</p>}
       </div>
+    </div>
+  );
+}
+
+type HermesConn =
+  | { state: "idle" }
+  | { state: "checking" }
+  | { state: "down"; message: string }
+  | {
+      state: "up";
+      store: string;
+      banks: number;
+      lastPush: { at: string; sessionId?: string; messages?: number } | null;
+      watcher: { running: boolean; lastRun: number; hermesDb: boolean };
+    };
+
+function HermesConnect() {
+  const [conn, setConn] = useState<HermesConn>({ state: "idle" });
+  const test = async () => {
+    setConn({ state: "checking" });
+    try {
+      const res = await fetch("/api/v1/memory/hermes-push");
+      const json = await res.json().catch(() => ({}));
+      if (!json?.ok) throw new Error("not ok");
+      const d = json.data;
+      setConn({
+        state: "up",
+        store: String(d.store ?? "unknown"),
+        banks: Number(d.banks ?? 0),
+        lastPush: d.lastPush ?? null,
+        watcher: {
+          running: !!d.watcher?.running,
+          lastRun: Number(d.watcher?.lastRun ?? 0),
+          hermesDb: !!d.watcher?.hermesDb,
+        },
+      });
+    } catch {
+      setConn({ state: "down", message: "Server unreachable — is the app running?" });
+    }
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-[12px] text-muted leading-relaxed">
+        Hermes sends finished chats straight into the matching bank — new projects get a bank automatically.
+        Nothing to configure: press the button to verify the link.
+      </p>
+      <div className="flex gap-2">
+        <Button size="sm" variant="primary" disabled={conn.state === "checking"} onClick={() => void test()}>
+          {conn.state === "checking" ? "Checking…" : "Connect"}
+        </Button>
+      </div>
+      {conn.state === "idle" && <p className="text-[11px] text-faint">Not checked yet.</p>}
+      {conn.state === "checking" && <p className="text-[11px] text-faint">Contacting the memory server…</p>}
+      {conn.state === "down" && <p className="text-[11px] text-ink">{conn.message}</p>}
+      {conn.state === "up" && (
+        <div className="rounded-xl border border-accent/30 bg-accent/5 p-3 space-y-1">
+          <p className="text-xs font-medium text-ink">Connected — {conn.store} · {conn.banks} bank{conn.banks === 1 ? "" : "s"}</p>
+          <p className="text-[11px] text-muted">
+            Last sync: {conn.lastPush ? `${conn.lastPush.at}${conn.lastPush.messages ? ` · ${conn.lastPush.messages} messages` : ""}` : "no chats pushed yet"}
+          </p>
+          <p className="text-[11px] text-muted">
+            Watcher loop: {conn.watcher.running ? "running" : "idle"}
+            {conn.watcher.lastRun ? ` · last tick ${new Date(conn.watcher.lastRun).toLocaleTimeString()}` : ""}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

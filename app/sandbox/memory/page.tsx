@@ -169,6 +169,8 @@ function RetainPanel({ runtimeScope }: { runtimeScope: RuntimeMemoryScope | null
   const [img, setImg] = useState<{ dataUrl: string; fileName: string } | null>(null);
   const [caption, setCaption] = useState("");
   const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null);
+  const [pushMsg, setPushMsg] = useState<string | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
   const imgInputRef = useRef<HTMLInputElement>(null);
 
   /** simulated vision pass — descriptive elements from caption + filename tokens */
@@ -197,6 +199,40 @@ function RetainPanel({ runtimeScope }: { runtimeScope: RuntimeMemoryScope | null
       URL.revokeObjectURL(url);
     };
     image.src = url;
+  };
+
+  const pushToServerBank = async () => {
+    if (!text.trim() || pushBusy) return;
+    setPushBusy(true);
+    setPushMsg(null);
+    try {
+      const now = Date.now();
+      const messages = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line, i) => {
+        const m = line.match(/^(user|assistant)\s*:\s*(.*)$/i);
+        return m
+          ? { role: m[1].toLowerCase(), content: m[2].trim(), timestamp: now + i }
+          : { role: "user", content: line, timestamp: now + i };
+      });
+      const project = scopes.projectId.trim() || s.detectedProject || "manual-paste";
+      const res = await fetch("/api/v1/memory/hermes-push", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          cwd: project.includes(":") || project.includes("/") || project.includes("\\") ? project : `manual/${project}`,
+          sessionId: `manual-${now}`,
+          bankName: project,
+          messages,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      setPushMsg(json?.ok
+        ? `Saved to bank ${json.data?.bankId ?? project} (${json.data?.imported ?? 0} messages${json.data?.created ? ", new bank" : ""}).`
+        : `Push failed: ${json?.error ?? "request failed"}`);
+    } catch {
+      setPushMsg("Server unreachable — is the app running?");
+    }
+    setPushBusy(false);
+    setTimeout(() => setPushMsg(null), 9000);
   };
 
   const doRetain = async (content: string) => {
@@ -395,6 +431,10 @@ function RetainPanel({ runtimeScope }: { runtimeScope: RuntimeMemoryScope | null
             {busy ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
             {busy ? "Extracting facts…" : img ? "Retain (text + image)" : "Retain"}
           </Button>
+          <Button variant="outline" onClick={() => void pushToServerBank()} disabled={pushBusy || !text.trim()}>
+            {pushBusy ? "Pushing…" : "Push to server bank"}
+          </Button>
+          {pushMsg && <span role="status" className="text-xs font-medium anim-fade-up text-ink">{pushMsg}</span>}
           {result && (
             <span className="text-xs text-ok font-medium anim-fade-up">
               ✓ {result.factCount} facts extracted{result.steeredOut > 0 && <span className="text-warn"> · {result.steeredOut} steered out</span>}
