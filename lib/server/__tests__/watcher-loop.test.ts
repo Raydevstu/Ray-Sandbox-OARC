@@ -18,6 +18,13 @@ describe("watcher loop", () => {
       { bankId: "nope", path: "" },
       { bankId: "evil", path: "../x" },
     ]);
-    expect(targets).toEqual([{ bankId: "demo", dir: "/projects/demo" }]);
+    expect(targets).toEqual([{ bankId: "demo", dir: "/projects/demo", cwdKey: null }]);
+  });
+
+  it("carries the recorded hermes cwd through", () => {
+    const targets = listWatchTargets("/projects", [
+      { bankId: "demo", path: "demo", cwd: "D:\\Projects\\Demo" },
+    ]);
+    expect(targets).toEqual([{ bankId: "demo", dir: "/projects/demo", cwdKey: "d:/projects/demo" }]);
   });
 });

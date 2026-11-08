@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     authorize(principal, 'memory:write', scope);
 
     const body = await request.json().catch(() => ({}));
-    const { name, watchPath } = parseBankBody(body);
+    const { name, watchPath, hermesCwd } = parseBankBody(body);
     const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
     const bankId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
@@ -45,8 +45,8 @@ export async function POST(request: Request) {
           await pool.query(
             `INSERT INTO evidence (id, tenant_id, bank_id, source, content, provenance, created_at)
              VALUES ($1, $2, $3, 'bank-watch-path', $4, $5, NOW())
-             ON CONFLICT (tenant_id, bank_id, id) DO UPDATE SET content = EXCLUDED.content`,
-            [`watch-${bankId}`, tenantId, bankId, resolvedPath, JSON.stringify({ path: resolvedPath, at: Date.now() })]
+             ON CONFLICT (tenant_id, bank_id, id) DO UPDATE SET content = EXCLUDED.content, provenance = EXCLUDED.provenance`,
+            [`watch-${bankId}`, tenantId, bankId, resolvedPath, JSON.stringify({ path: resolvedPath, cwd: hermesCwd || undefined, at: Date.now() })]
           );
         }
       } catch (e) {

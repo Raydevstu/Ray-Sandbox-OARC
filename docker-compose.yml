@@ -33,6 +33,7 @@ services:
       - "3018:3000"
     volumes:
       - ./projects:/projects:ro
+      - ${HERMES_STATE_DB:-/dev/null}:/hermes-state.db:ro
     environment:
       NODE_ENV: production
       APEX_DATABASE_URL: postgresql://hindsight:hindsight_local_only@postgres:5432/hindsight
@@ -40,6 +41,8 @@ services:
       APEX_REQUIRE_JWT: "false"
       APEX_RUNTIME_ENV: "development"
       APEX_NIGHTLY: "true"
+      PROJECTS_ROOT: "/projects"
+      HERMES_STATE_DB: "/hermes-state.db"
     depends_on:
       postgres:
         condition: service_healthy

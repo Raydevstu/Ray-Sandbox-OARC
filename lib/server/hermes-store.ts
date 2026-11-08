@@ -44,14 +44,14 @@ export function readSessionMessages(
   let db: DatabaseSync | null = null;
   try {
     db = new DatabaseSync(dbPath, { readOnly: true });
-    const rows = db
+    const rows = (db
       .prepare(
         `SELECT session_id AS sessionId, role, COALESCE(content,'') AS content,
                 COALESCE(timestamp,0) AS timestamp
          FROM messages WHERE session_id = ? AND COALESCE(timestamp,0) > ?
          ORDER BY timestamp ASC LIMIT ?`
       )
-      .all(sessionId, sinceTimestamp, limit) as HermesMessage[];
+      .all(sessionId, sinceTimestamp, limit) as unknown) as HermesMessage[];
     return rows.map((r) => ({
       sessionId: String(r.sessionId),
       role: String(r.role ?? ""),

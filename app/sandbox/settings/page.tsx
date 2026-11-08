@@ -271,6 +271,7 @@ function BankEditor() {
   const [nbName, setNbName] = useState("");
   const [nbBg, setNbBg] = useState("");
   const [nbPath, setNbPath] = useState("");
+  const [nbCwd, setNbCwd] = useState("");
   const [nbMsg, setNbMsg] = useState("");
 
   if (!bank) return null;
@@ -284,7 +285,7 @@ function BankEditor() {
       const res = await fetch("/api/v1/memory/banks", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: clean, watchPath: nbPath.trim() || undefined }),
+        body: JSON.stringify({ name: clean, watchPath: nbPath.trim() || undefined, hermesCwd: nbCwd.trim() || undefined }),
       });
       const json = await res.json().catch(() => ({}));
       if (json?.ok) {
@@ -295,7 +296,7 @@ function BankEditor() {
     } catch {
       setNbMsg("Server unreachable — local bank still works.");
     }
-    setNewBank(false); setNbName(""); setNbBg(""); setNbPath("");
+    setNewBank(false); setNbName(""); setNbBg(""); setNbPath(""); setNbCwd("");
     setTimeout(() => setNbMsg(""), 8000);
   };
   return (
@@ -316,6 +317,7 @@ function BankEditor() {
             <Input value={nbName} onChange={(e) => setNbName(e.target.value)} placeholder="New bank name — e.g. support-agent" className="text-xs w-64" autoFocus />
             <Textarea rows={2} value={nbBg} onChange={(e) => setNbBg(e.target.value)} placeholder="I am a … (first-person background)" className="text-xs" />
             <Input value={nbPath} onChange={(e) => setNbPath(e.target.value)} placeholder="Docs folder — e.g. demo (under /projects)" className="text-xs w-64" />
+            <Input value={nbCwd} onChange={(e) => setNbCwd(e.target.value)} placeholder="Hermes cwd — e.g. D:\Projects\Demo (chat sync)" className="text-xs w-64" />
             <div className="flex gap-2">
               <Button size="sm" variant="primary" disabled={!nbName.trim()} onClick={() => void createBankEverywhere()}>
                 Create bank
