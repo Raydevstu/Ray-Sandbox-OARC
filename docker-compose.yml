@@ -34,7 +34,7 @@ services:
     environment:
       NODE_ENV: production
       APEX_DATABASE_URL: postgresql://hindsight:***@postgres:5432/hindsight
-      APEX_ALLOW_DEV_PRINCIPAL: "false"
+      APEX_ALLOW_DEV_PRINCIPAL: "true"
       APEX_NIGHTLY: "true"
     depends_on:
       postgres:
