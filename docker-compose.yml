@@ -36,6 +36,7 @@ services:
       APEX_DATABASE_URL: postgresql://hindsight:***@postgres:5432/hindsight
       APEX_ALLOW_DEV_PRINCIPAL: "true"
       APEX_REQUIRE_JWT: "false"
+      APEX_RUNTIME_ENV: "development"
       APEX_NIGHTLY: "true"
     depends_on:
       postgres:
