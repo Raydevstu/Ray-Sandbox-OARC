@@ -70,6 +70,7 @@ export interface MemoryFact {
   verbatim?: boolean; // stored with infer=false
   expiresAt?: string | null; // TTL — excluded from recall once past
   supersedes?: string | null; // ADD-only mode: id of the older fact this updates
+  recencyBoost?: number; // temporal version preference boost
   temporalMeta?: TemporalMetadata;
   abstract?: string;
   overview?: string;

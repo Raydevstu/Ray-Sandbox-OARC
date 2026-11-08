@@ -21,6 +21,7 @@ import { clamp, rng } from "@/lib/utils";
 import { bm25Score, buildBm25, crossEncoderScore, embed, cosine, extractEntities, parseTemporal } from "./nlp";
 import { matchesFilters, validateFilters } from "./filters";
 import { classifyTemporalIntent, resolveFactHistory, type HistoryPolicy } from "./temporal";
+import { preferLatestVersion } from "./temporal-version";
 import { packLayeredFacts } from "./layers";
 import { buildRecallDigest } from "./digest";
 
@@ -56,12 +57,13 @@ export function recall(input: RecallInput): RecallTrace {
   const temporalIntent = classifyTemporalIntent(query);
   const historyPolicy = input.historyPolicy ?? (temporalIntent === "current" ? "current" : temporalIntent === "historical" ? "historical" : "all");
   const resolvedFacts = resolveFactHistory(input.facts, historyPolicy);
+  const versionBoosted = preferLatestVersion(resolvedFacts);
 
   // pool: facts (filtered by types + v2 filters) + observations surfaced as pseudo-facts
   const filtersValid = input.filters ? validateFilters(input.filters).ok : true;
   const now0 = new Date();
   const pool: { fact: MemoryFact; observation?: Observation }[] = [];
-  for (const f of resolvedFacts) {
+  for (const f of versionBoosted) {
     if (settings.types.length && !settings.types.includes(f.network)) continue;
     // TTL: expired memories are skipped unless explicitly included
     if (!settings.includeExpired && f.expiresAt && new Date(f.expiresAt) < now0) continue;
