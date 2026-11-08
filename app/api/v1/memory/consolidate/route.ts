@@ -4,6 +4,7 @@ import { readProjectScope } from '../../../../../lib/runtime/api-handlers';
 import { parseRuntimeConfig } from '../../../../../lib/runtime/config';
 import { apiFailure } from '../../../../../lib/runtime/api-envelope';
 import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
+import { ensureSchedulerBooted } from '../../../../../lib/server/scheduler-boot';
 import { loadDistilledFacts, saveDistilledFacts, loadDecisionTraces } from '../../../../../lib/server/pg-lifecycle';
 import { supersedeFacts, decayScores } from '../../../../../lib/engine/memory-lifecycle';
 import { scoreSkills, applySkillWeights } from '../../../../../lib/engine/skill-score';
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
     const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
+    ensureSchedulerBooted(tenantId, bankId);
 
     const before = await loadDistilledFacts(pool, tenantId, bankId, 500);
     const afterSupersede = supersedeFacts(before);
