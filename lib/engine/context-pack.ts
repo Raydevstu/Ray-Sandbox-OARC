@@ -1,6 +1,6 @@
 import type { DistilledFact } from "./distillation";
 import type { Investigation } from "./investigations";
-import { tokenize } from "./nlp";
+import { tokenize, embed, cosine } from "./nlp";
 
 export interface RankedFact extends DistilledFact {
   score: number;
@@ -25,8 +25,52 @@ function entityTokens(entity: string): string[] {
   return tokenize(entity);
 }
 
-export function rankFacts(query: string, facts: DistilledFact[]): DistilledFact[] {
+export interface RankOpts {
+  links?: { from: string; to: string }[];
+  entities?: { name: string; cooccur?: { entity: string }[] }[];
+  semanticWeight?: number;
+}
+
+export function rankFacts(query: string, facts: DistilledFact[], opts?: RankOpts): DistilledFact[] {
   const qTokens = new Set(tokenize(query));
+  const linkAdj = new Map<string, Set<string>>();
+  for (const l of opts?.links ?? []) {
+    const a = (l.from || "").toLowerCase();
+    const b = (l.to || "").toLowerCase();
+    if (!a || !b) continue;
+    if (!linkAdj.has(a)) linkAdj.set(a, new Set());
+    if (!linkAdj.has(b)) linkAdj.set(b, new Set());
+    linkAdj.get(a)!.add(b);
+    linkAdj.get(b)!.add(a);
+  }
+  const directHits = new Set<string>();
+  for (const f of facts) {
+    const cTokens = new Set(tokenize(f.content));
+    let hit = false;
+    for (const t of cTokens) if (qTokens.has(t)) { hit = true; break; }
+    const eToks = entityTokens(f.entity);
+    for (const t of eToks) if (qTokens.has(t)) hit = true;
+    if (hit) directHits.add(f.entity.toLowerCase());
+  }
+  for (const t of qTokens) directHits.add(t);
+  const neighbourSet = new Set<string>();
+  for (const d of directHits) {
+    const nbs = linkAdj.get(d);
+    if (!nbs) continue;
+    let added = 0;
+    for (const n of nbs) {
+      if (added >= 3) break;
+      neighbourSet.add(n);
+      added++;
+    }
+  }
+  let qVec: Float32Array | null = null;
+  try {
+    qVec = embed(query);
+  } catch {
+    qVec = null;
+  }
+  const semanticWeight = opts?.semanticWeight ?? 1.5;
   const scored = facts.map((f) => {
     const cTokens = new Set(tokenize(f.content));
     let overlap = 0;
@@ -37,7 +81,18 @@ export function rankFacts(query: string, facts: DistilledFact[]): DistilledFact[
     for (const t of cTokens) {
       if (eToks.includes(t) && qTokens.has(t)) entityMatch = 1;
     }
-    const score = overlap * 3 + entityMatch * 2 + (f.importance ?? 0) / 25 + (f.confidence ?? 0);
+    let graphBoost = 0;
+    if (neighbourSet.has(f.entity.toLowerCase())) graphBoost = 2.5;
+    let semanticBoost = 0;
+    if (overlap === 0 && qVec) {
+      try {
+        const c = cosine(qVec, embed(f.content));
+        if (Number.isFinite(c) && c > 0) semanticBoost = c * semanticWeight;
+      } catch {
+        semanticBoost = 0;
+      }
+    }
+    const score = overlap * 3 + entityMatch * 2 + (f.importance ?? 0) / 25 + (f.confidence ?? 0) + graphBoost + semanticBoost;
     return { f, score };
   });
   return scored.sort((a, b) => b.score - a.score).map((s) => s.f);
