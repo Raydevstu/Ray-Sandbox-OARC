@@ -25,6 +25,7 @@ export interface MemoryScopes {
   agentId: string | null;
   appId: string | null;
   runId: string | null;
+  projectId?: string;
 }
 
 export interface FactRevision {

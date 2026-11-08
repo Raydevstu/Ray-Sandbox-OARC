@@ -17,6 +17,7 @@ import { MemoryGraph, type GraphSelection } from "@/components/memory/MemoryGrap
 import { FilterBuilder } from "@/components/memory/FilterBuilder";
 import { matchesFilters, validateFilters } from "@/lib/engine/filters";
 import { useSandbox } from "@/lib/store";
+import { detectProject, slugifyProject } from "@/lib/engine/project-detector";
 import { recall } from "@/lib/engine/recall";
 import { reflect } from "@/lib/engine/reflect";
 import { buildEntityIndex, entityBoostSignal } from "@/lib/engine/entities";
@@ -159,7 +160,7 @@ function RetainPanel({ runtimeScope }: { runtimeScope: RuntimeMemoryScope | null
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ factCount: number; steeredOut: number } | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [scopes, setScopes] = useState({ userId: "alice", agentId: "atlas", appId: "sandbox-demo", runId: "" });
+  const [scopes, setScopes] = useState({ userId: "alice", agentId: "atlas", appId: "sandbox-demo", runId: "", projectId: "" });
   const [includes, setIncludes] = useState("");
   const [excludes, setExcludes] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -214,6 +215,14 @@ function RetainPanel({ runtimeScope }: { runtimeScope: RuntimeMemoryScope | null
       return;
     }
     setTimeout(() => {
+      // Auto-create bank for detected project if it doesn't exist yet
+      const detected = s.detectedProject;
+      if (detected && !s.projectBanks[detected]) {
+        const bankId = s.createBank(detected, `I am the ${detected} project memory bank.`);
+        s.registerProjectBank(detected, bankId);
+      } else if (detected && s.projectBanks[detected]) {
+        s.setActiveBank(s.projectBanks[detected]);
+      }
       let finalContent = content;
       let attachment: import("@/lib/types").MemoryAttachment | undefined;
       if (img) {
@@ -229,11 +238,12 @@ function RetainPanel({ runtimeScope }: { runtimeScope: RuntimeMemoryScope | null
       const r = s.retain(finalContent, {
         tags: tags.split(/[,\s]+/).filter(Boolean),
         scopes: {
-          userId: scopes.userId.trim() || undefined,
-          agentId: scopes.agentId.trim() || undefined,
-          appId: scopes.appId.trim() || undefined,
-          runId: scopes.runId.trim() || undefined,
-        },
+                  userId: scopes.userId.trim() || undefined,
+                  agentId: scopes.agentId.trim() || undefined,
+                  appId: scopes.appId.trim() || undefined,
+                  runId: scopes.runId.trim() || undefined,
+                  projectId: scopes.projectId.trim() || undefined,
+                },
         includes: includes.trim() || undefined,
         excludes: excludes.trim() || undefined,
         customInstructions: instructions.trim() || undefined,
@@ -258,10 +268,24 @@ function RetainPanel({ runtimeScope }: { runtimeScope: RuntimeMemoryScope | null
         <Textarea
           rows={7}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            const detection = detectProject(e.target.value);
+            if (detection.projectName && detection.confidence > 0.5) {
+              s.setDetectedProject(detection.projectName);
+            } else {
+              s.setDetectedProject(null);
+            }
+          }}
           placeholder={"User: We shipped the vector search upgrade yesterday…\nAssistant: Great — I'll note the improvement…"}
           className="font-mono text-[12.5px] leading-relaxed"
         />
+        {s.detectedProject && (
+          <div className="mt-2 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 flex items-center gap-2">
+            <span className="text-xs font-medium text-ink">Detected project: {s.detectedProject}</span>
+            <span className="text-[10px] text-muted">Facts will be routed to this project's bank automatically.</span>
+          </div>
+        )}
 
         {/* visual memory attachment */}
         <div className="mt-2.5 rounded-xl border border-border-soft bg-bg-soft p-3">
@@ -308,12 +332,13 @@ function RetainPanel({ runtimeScope }: { runtimeScope: RuntimeMemoryScope | null
         </div>
 
         {/* entity scopes */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3">
           {([
             ["userId", "user_id", "whose persona"],
             ["agentId", "agent_id", "which agent"],
             ["appId", "app_id", "tenant / app"],
             ["runId", "run_id", "session / ticket"],
+            ["projectId", "project_id", "project"],
           ] as const).map(([key, label, ph]) => (
             <div key={key}>
               <p className="text-[9.5px] uppercase tracking-wider text-faint font-mono mb-1">{label}</p>
