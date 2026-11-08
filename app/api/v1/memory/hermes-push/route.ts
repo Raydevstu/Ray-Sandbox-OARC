@@ -5,13 +5,13 @@ import { parseRuntimeConfig } from '../../../../../lib/runtime/config';
 import { apiFailure } from '../../../../../lib/runtime/api-envelope';
 import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
 import { watcherStatus } from '../../../../../lib/server/watcher-loop';
-import { saveDistilledFacts } from '../../../../../lib/server/pg-lifecycle';
+import { saveDistilledFacts, deleteChatSessionFacts } from '../../../../../lib/server/pg-lifecycle';
 import {
   parsePushBody,
   bankIdForCwd,
   findBankForCwd,
-  pushTranscript,
 } from '../../../../../lib/server/hermes-push';
+import { structureTranscript } from '../../../../../lib/engine/chat-structure';
 
 // The push endpoint routes itself (cwd → bank), so callers don't carry a
 // project scope. Fall back to the sandbox scope when none is supplied.
@@ -63,21 +63,14 @@ export async function POST(request: Request) {
       created = true;
     }
 
-    const transcript = pushTranscript(push.sessionId, push.messages, 0);
-    if (!transcript) {
+    const facts = structureTranscript(push.sessionId, push.messages, bankId);
+    if (facts.length === 0) {
       return NextResponse.json({ ok: true, data: { bankId, created, imported: 0 } });
     }
-    await saveDistilledFacts(pool, tenantId, bankId, [
-      {
-        entity: bankId,
-        category: 'workflow',
-        content: transcript.slice(0, 4000),
-        confidence: 0.7,
-        importance: 60,
-        occurrences: 1,
-        provenance: { source: 'hermes-push', turnId: push.sessionId, createdAt: Date.now() },
-      },
-    ]);
+    if (push.resync) {
+      await deleteChatSessionFacts(pool, tenantId, bankId, push.sessionId);
+    }
+    await saveDistilledFacts(pool, tenantId, bankId, facts);
     if (created) {
       await pool.query(
         `INSERT INTO evidence (id, tenant_id, bank_id, source, content, provenance, created_at)
@@ -95,7 +88,7 @@ export async function POST(request: Request) {
         JSON.stringify({ source: 'hermes-push', sessionId: push.sessionId, at: Date.now() })]
     );
     const latest = Math.max(...push.messages.map((m) => m.timestamp));
-    return NextResponse.json({ ok: true, data: { bankId, created, imported: push.messages.length, latest } }, { status: 201 });
+    return NextResponse.json({ ok: true, data: { bankId, created, imported: facts.length, messages: push.messages.length, latest, categories: [...new Set(facts.map((f) => f.category))] } }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'push failed';
     return apiFailure(requestId, message, 'failed', 400, { retryable: true });

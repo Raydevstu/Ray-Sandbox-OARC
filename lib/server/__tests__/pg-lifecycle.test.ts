@@ -3,6 +3,7 @@ import {
   DISTILLED_FACTS_DDL,
   DECISION_TRACES_DDL,
   saveDistilledFacts,
+  deleteChatSessionFacts,
   loadDistilledFacts,
   saveDecisionTrace,
   loadDecisionTraces,
@@ -72,5 +73,21 @@ describe("pg lifecycle store", () => {
   it("acceptance is 0 when no traces", async () => {
     const pool: any = fakePool([{ accepted: 0, decided: 0 }]);
     expect(await traceAcceptance(pool, "t1", "bank1")).toBe(0);
+  });
+
+  it("deletes chat session facts by turnId with resync-safe SQL", async () => {
+    const pool: any = fakePool([{ id: "df-x-1" }, { id: "df-x-2" }]);
+    const n = await deleteChatSessionFacts(pool, "t1", "bank1", "sess-9");
+    expect(n).toBe(2);
+    const blob = JSON.stringify(pool.seen);
+    expect(blob).toMatch(/provenance::jsonb/);
+    expect(blob).toMatch(/DELETE FROM facts/);
+    expect(pool.seen[0].params).toEqual(["t1", "bank1", ["hermes-push", "hermes-sync"], "sess-9"]);
+  });
+
+  it("delete is a no-op when the session has no facts", async () => {
+    const pool: any = fakePool([]);
+    expect(await deleteChatSessionFacts(pool, "t1", "bank1", "sess-9")).toBe(0);
+    expect(pool.seen).toHaveLength(1);
   });
 });

@@ -193,6 +193,7 @@ const ENTITY_BLACKLIST = new Set([
   "January", "February", "March", "April", "May", "June", "July", "August",
   "September", "October", "November", "December", "I", "The", "This", "That",
   "They", "She", "He", "We", "You", "It", "But", "And", "So", "Because",
+  "User", "Assistant", "System",
 ]);
 
 export function extractEntities(text: string): string[] {

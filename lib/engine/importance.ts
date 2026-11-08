@@ -15,7 +15,15 @@ export function calculateImportance(
   const conf = safeNum(f.confidence, 0.5);
   const occ = Math.max(0, Math.floor(safeNum(f.occurrences, 1)));
   const catWeight =
-    f.category === "failure" ? 34 : f.category === "solution" ? 32 : f.category === "architecture" ? 30 : 22;
+    f.category === "failure" ? 34
+    : f.category === "solution" ? 32
+    : f.category === "decision" ? 32
+    : f.category === "success" ? 32
+    : f.category === "architecture" ? 30
+    : f.category === "goal" ? 28
+    : f.category === "implementation" ? 28
+    : f.category === "progress" ? 24
+    : 22;
   const architectureImpact = Math.min(40, catWeight + Math.min(10, Math.floor(entity.length / 2)));
   const dependencyImpact = Math.min(25, occ * 8);
   const taskFrequency = Math.min(20, occ * 6);

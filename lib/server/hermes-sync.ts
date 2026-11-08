@@ -1,10 +1,10 @@
 import {
   normalizeCwd,
-  buildSessionTranscript,
   newMessagesSince,
   type HermesMessage,
   type HermesSession,
 } from "./hermes-sessions";
+import { structureTranscript } from "../engine/chat-structure";
 import type { StoredFact } from "./pg-lifecycle";
 
 export interface SyncDeps {
@@ -32,20 +32,14 @@ export async function syncBankFromSessions(deps: SyncDeps): Promise<SyncReport> 
     const cursor = deps.getCursor(deps.bankId, s.id);
     const fresh = newMessagesSince(deps.readMessages(s.id), cursor);
     if (fresh.length === 0) continue;
-    const transcript = buildSessionTranscript(s.id, fresh);
-    if (!transcript.trim()) continue;
     const latest = fresh[fresh.length - 1].timestamp;
-    await deps.saveFacts([
-      {
-        entity: deps.bankId,
-        category: "workflow",
-        content: transcript.slice(0, 4000),
-        confidence: 0.7,
-        importance: 60,
-        occurrences: 1,
-        provenance: { source: "hermes-sync", turnId: s.id, createdAt: Date.now() },
-      },
-    ]);
+    const structured = structureTranscript(
+      s.id,
+      fresh.map((m) => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
+      deps.bankId
+    ).map((f) => ({ ...f, provenance: { ...f.provenance, source: "hermes-sync" } }));
+    if (structured.length === 0) continue;
+    await deps.saveFacts(structured);
     messagesImported += fresh.length;
     deps.setCursor(deps.bankId, s.id, latest);
   }

@@ -22,6 +22,7 @@ function arg(name, fallback) {
 
 const APP = (arg("app", process.env.APP_URL || "http://localhost:3018")).replace(/\/$/, "");
 const DB = arg("db", process.env.HERMES_STATE_DB || "C:/Users/kafsh/AppData/Local/hermes/state.db");
+const RESYNC = process.argv.includes("--resync");
 
 function loadCursors() {
   try {
@@ -50,7 +51,7 @@ async function main() {
   let pushedMessages = 0;
   for (const s of sessions) {
     const sid = String(s.id);
-    const cursor = Number(cursors[sid] ?? 0);
+    const cursor = RESYNC ? 0 : Number(cursors[sid] ?? 0);
     const rows = db
       .prepare(`SELECT role, COALESCE(content,'') AS content, COALESCE(timestamp,0) AS ts
                 FROM messages WHERE session_id = ? AND COALESCE(timestamp,0) > ? ORDER BY ts ASC LIMIT 200`)
@@ -69,7 +70,7 @@ async function main() {
         "x-dev-tenant-id": "sandbox-tenant",
         "x-dev-scopes": "memory:read memory:write",
       },
-      body: JSON.stringify({ cwd: String(s.cwd), sessionId: sid, messages: msgs }),
+      body: JSON.stringify({ cwd: String(s.cwd), sessionId: sid, resync: RESYNC, messages: msgs }),
     });
     const json = await res.json().catch(() => ({}));
     if (json?.ok) {

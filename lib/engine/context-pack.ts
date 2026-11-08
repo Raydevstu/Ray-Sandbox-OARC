@@ -124,9 +124,9 @@ export function buildContextPack(input: {
     tokensUsed += t;
   }
   const architectureFacts = packed
-    .filter((f) => f.category === "architecture" || f.category === "workflow" || f.category === "dependency")
+    .filter((f) => f.category === "architecture" || f.category === "workflow" || f.category === "dependency" || f.category === "decision" || f.category === "implementation" || f.category === "progress" || f.category === "goal")
     .map((f) => f.content);
-  const previousSolutions = packed.filter((f) => f.category === "solution").map((f) => f.content);
+  const previousSolutions = packed.filter((f) => f.category === "solution" || f.category === "success").map((f) => f.content);
   const risks = packed.filter((f) => f.category === "risk" || f.category === "failure").map((f) => f.content);
   const fileSet = new Set<string>();
   for (const f of packed) for (const file of extractFiles(f.content)) fileSet.add(file);

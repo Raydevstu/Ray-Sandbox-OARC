@@ -32,6 +32,11 @@ describe("hermes push", () => {
     expect(() => parsePushBody(null)).toThrow();
   });
 
+  it("defaults resync to false and accepts true", () => {
+    expect(parsePushBody({ cwd: "D:\\P", sessionId: "x", messages: [{ role: "user", content: "hi", timestamp: 1 }] }).resync).toBe(false);
+    expect(parsePushBody({ cwd: "D:\\P", sessionId: "x", resync: true, messages: [{ role: "user", content: "hi", timestamp: 1 }] }).resync).toBe(true);
+  });
+
   it("derives a bank id from the cwd basename", () => {
     expect(bankIdForCwd("D:\\Projects\\DemoApp")).toBe("demoapp");
     expect(bankIdForCwd("D:/Projects/OBA Ultimate/")).toBe("oba-ultimate");

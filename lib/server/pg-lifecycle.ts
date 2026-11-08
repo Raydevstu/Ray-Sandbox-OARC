@@ -206,3 +206,38 @@ function hashStr(text: string): number {
   }
   return h | 0;
 }
+
+const CHAT_SOURCES = ["hermes-push", "hermes-sync"];
+
+const TURN_MATCH = `CASE WHEN e.provenance LIKE '{%' THEN (e.provenance::jsonb->>'turnId') ELSE NULL END = $4`;
+
+/** Remove every chat-ingested fact for one session (resync path). */
+export async function deleteChatSessionFacts(
+  pool: PgPool,
+  tenantId: string,
+  bankId: string,
+  sessionId: string
+): Promise<number> {
+  const { rows } = await pool.query(
+    `SELECT fe.fact_id AS id FROM fact_evidence fe
+     JOIN evidence e ON e.tenant_id = fe.tenant_id AND e.bank_id = fe.bank_id AND e.id = fe.evidence_id
+     WHERE fe.tenant_id = $1 AND fe.bank_id = $2
+       AND e.source = ANY($3) AND ${TURN_MATCH}`,
+    [tenantId, bankId, CHAT_SOURCES, sessionId]
+  );
+  const ids = rows.map((r) => String(r.id));
+  if (ids.length === 0) return 0;
+  await pool.query(
+    `DELETE FROM fact_evidence WHERE tenant_id = $1 AND bank_id = $2 AND fact_id = ANY($3)`,
+    [tenantId, bankId, ids]
+  );
+  await pool.query(
+    `DELETE FROM evidence e WHERE e.tenant_id = $1 AND e.bank_id = $2 AND e.source = ANY($3) AND ${TURN_MATCH} AND e.id LIKE 'ev-%'`,
+    [tenantId, bankId, CHAT_SOURCES, sessionId]
+  );
+  await pool.query(
+    `DELETE FROM facts WHERE tenant_id = $1 AND bank_id = $2 AND id = ANY($3)`,
+    [tenantId, bankId, ids]
+  );
+  return ids.length;
+}

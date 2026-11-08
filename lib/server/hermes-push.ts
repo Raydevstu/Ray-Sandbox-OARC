@@ -11,6 +11,7 @@ export interface ParsedPush {
   cwdKey: string;
   sessionId: string;
   bankName: string | null;
+  resync: boolean;
   messages: PushMessage[];
 }
 
@@ -59,7 +60,7 @@ export function parsePushBody(body: unknown): ParsedPush {
   }
   if (messages.length === 0) throw new Error("messages must contain at least one non-empty message");
   const bankName = typeof b.bankName === "string" && b.bankName.trim() ? b.bankName.trim() : null;
-  return { cwd, cwdKey: normalizeCwd(cwd), sessionId, bankName, messages };
+  return { cwd, cwdKey: normalizeCwd(cwd), sessionId, bankName, resync: b.resync === true, messages };
 }
 
 export function parseTranscriptText(text: string): PushMessage[] {

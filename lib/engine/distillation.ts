@@ -2,7 +2,7 @@ import { buildInvestigation, type Investigation } from "./investigations";
 
 export interface DistilledFact {
   entity: string;
-  category: "architecture" | "workflow" | "dependency" | "risk" | "failure" | "solution";
+  category: "architecture" | "workflow" | "dependency" | "risk" | "failure" | "solution" | "decision" | "implementation" | "progress" | "success" | "goal";
   content: string;
   confidence: number;
   importance: number;

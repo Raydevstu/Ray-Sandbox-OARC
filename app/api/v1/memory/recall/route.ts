@@ -9,6 +9,7 @@ import { apiFailure } from '../../../../../lib/runtime/api-envelope';
 import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
 import { saveDecisionTrace } from '../../../../../lib/server/pg-lifecycle';
 import { recordTrace } from '../../../../../lib/engine/decision-trace';
+import { rankBankFacts } from '../../../../../lib/server/recall-rank';
 
 const recallScheduler = createRecallScheduler(recallConcurrencyFromEnv(process.env));
 
@@ -30,41 +31,29 @@ export async function POST(request: Request) {
         const body = await request.json().catch(() => ({}));
         const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
         const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
-        const scopes = body?.scopes ?? {};
+        const query = String(body?.query ?? '');
         const limit = typeof body?.limit === 'number' ? body.limit : (typeof body?.maxTokens === 'number' ? Math.floor(body.maxTokens / 100) : 20);
-        const conditions = ['bank_id = $1'];
-        const params: any[] = [bankId];
-        let idx = 2;
-        if (scopes?.userId) { conditions.push(`scopes->>'userId' = $${idx++}`); params.push(scopes.userId); }
-        if (scopes?.agentId) { conditions.push(`scopes->>'agentId' = $${idx++}`); params.push(scopes.agentId); }
-        if (scopes?.appId) { conditions.push(`scopes->>'appId' = $${idx++}`); params.push(scopes.appId); }
-        if (scopes?.projectId) { conditions.push(`scopes->>'projectId' = $${idx++}`); params.push(scopes.projectId); }
-        params.push(limit);
-        const result = await pool.query(
-          `SELECT * FROM memory_facts WHERE ${conditions.join(' AND ')} ORDER BY mentioned_at DESC LIMIT $${idx}`,
-          params
+        const { rows } = await pool.query(
+          `SELECT f.entity, f.category, f.claim AS content, f.confidence, f.importance, f.occurrences
+           FROM facts f WHERE f.tenant_id = $1 AND f.bank_id = $2
+             AND NOT EXISTS (SELECT 1 FROM deleted_facts d WHERE d.tenant_id = f.tenant_id AND d.bank_id = f.bank_id AND d.fact_id = f.id)
+           ORDER BY f.importance DESC LIMIT 200`,
+          [tenantId, bankId]
         );
+        const ranked = rankBankFacts(query, rows as never[], limit);
         try {
-          const packFacts = result.rows.map((r: any) => ({
-            entity: (Array.isArray(r.entities) && r.entities[0]) || 'general',
-            category: 'workflow' as const,
-            content: `fact ${String(r.id ?? '')}`.slice(0, 32),
-            confidence: Number(r.confidence ?? 0.5),
-            importance: 50,
-            occurrences: 1,
-          }));
           const trace = recordTrace({
-            query: String(body?.query ?? ''),
+            query,
             task: `pg-recall:${bankId}`,
-            pack: { task: bankId, architectureFacts: [], previousSolutions: [], relevantFiles: [], dependencies: [], risks: [], facts: packFacts, tokensUsed: packFacts.length * 25 },
+            pack: { task: bankId, architectureFacts: ranked.map((f) => f.content), previousSolutions: [], relevantFiles: [], dependencies: [], risks: [], facts: ranked, tokensUsed: ranked.length * 25 },
             model: 'pg',
-            tokens: packFacts.length * 25,
+            tokens: ranked.length * 25,
           });
           await saveDecisionTrace(pool, tenantId, bankId, trace);
         } catch (traceError) {
           console.warn('decision trace write failed (recall unaffected):', traceError);
         }
-        return NextResponse.json({ ok: true, data: { facts: result.rows, traceId: `pg-${Date.now()}` } });
+        return NextResponse.json({ ok: true, data: { facts: ranked, traceId: `pg-${Date.now()}` } });
       } catch (pgError) {
         console.warn('PostgreSQL unavailable, falling back to localStorage:', pgError);
       }
