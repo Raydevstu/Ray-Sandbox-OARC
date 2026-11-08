@@ -6,6 +6,7 @@ import { createRuntimeRepository, isRuntimeStoreConfigured } from '../../../../.
 import { createRecallProfiler } from '../../../../../lib/runtime/recall-profiling';
 import { createRecallScheduler, recallConcurrencyFromEnv } from '../../../../../lib/runtime/recall-scheduler';
 import { apiFailure } from '../../../../../lib/runtime/api-envelope';
+import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
 
 const recallScheduler = createRecallScheduler(recallConcurrencyFromEnv(process.env));
 
@@ -19,7 +20,24 @@ export async function POST(request: Request) {
     profiler.mark('scope');
     authorize(principal, 'memory:read', scope);
     profiler.mark('authorize');
-    if (!isRuntimeStoreConfigured()) return apiFailure(requestId, 'canonical store is not configured', 'unavailable', 503, { retryable: true });
+
+    const pool = getPgPool();
+    if (pool) {
+      await ensureSchema();
+      const body = await request.json().catch(() => ({}));
+      const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
+      const scopes = body?.scopes ?? {};
+      const limit = typeof body?.limit === 'number' ? body.limit : (typeof body?.maxTokens === 'number' ? Math.floor(body.maxTokens / 100) : 20);
+      const result = await pool.query(
+        `SELECT * FROM memory_facts WHERE bank_id = $1 AND (scopes->>'userId' = $2 OR $2 IS NULL) ORDER BY mentioned_at DESC LIMIT $3`,
+        [bankId, scopes?.userId ?? null, limit]
+      );
+      return NextResponse.json({ ok: true, data: { facts: result.rows, traceId: `pg-${Date.now()}` } });
+    }
+
+    if (!isRuntimeStoreConfigured()) {
+      return NextResponse.json({ ok: true, state: "localStorage-only" });
+    }
     return await recallScheduler.run(async () => {
       profiler.mark('queue');
       const repository = createRuntimeRepository(scope, profiler);

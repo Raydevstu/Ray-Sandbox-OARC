@@ -4,6 +4,7 @@ import { createRetainHandler, readProjectScope } from '../../../../../lib/runtim
 import { parseRuntimeConfig } from '../../../../../lib/runtime/config';
 import { createRuntimeRepository, isRuntimeStoreConfigured } from '../../../../../lib/runtime/repository';
 import { apiFailure } from '../../../../../lib/runtime/api-envelope';
+import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
 
 export async function POST(request: Request) {
   const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
@@ -11,7 +12,28 @@ export async function POST(request: Request) {
     const scope = await readProjectScope(request);
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
     authorize(principal, 'memory:write', scope);
-    if (!isRuntimeStoreConfigured()) return apiFailure(requestId, 'canonical store is not configured', 'unavailable', 503, { retryable: true });
+
+    const pool = getPgPool();
+    if (pool) {
+      await ensureSchema();
+      const body = await request.json().catch(() => ({}));
+      const content = String(body?.content ?? '');
+      const bankId = String(body?.bankId ?? scope.bankId ?? 'default');
+      const scopes = body?.scopes ?? {};
+      const tags = Array.isArray(body?.tags) ? body.tags : [];
+      const entities = Array.isArray(body?.entities) ? body.entities : [];
+      const factId = `fact-${Date.now()}`;
+      await pool.query(
+        `INSERT INTO memory_facts (id, bank_id, text, network, confidence, scopes, tags, entities)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [factId, bankId, content, "world", 0.8, JSON.stringify(scopes), tags, entities]
+      );
+      return NextResponse.json({ ok: true, data: { fact: { id: factId } } });
+    }
+
+    if (!isRuntimeStoreConfigured()) {
+      return NextResponse.json({ ok: true, state: "localStorage-only" });
+    }
     return await createRetainHandler(createRuntimeRepository(scope))(request);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'retain request failed';
