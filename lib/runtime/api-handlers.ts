@@ -45,7 +45,13 @@ export const readScope = async (request: Request): Promise<{ tenantId: string; b
 };
 
 export const readProjectScope = async (request: Request): Promise<{ tenantId: string; bankId: string; projectId: string }> => {
-  const body = await request.clone().json() as { tenantId?: unknown; bankId?: unknown; projectId?: unknown };
-  if (typeof body.tenantId !== 'string' || typeof body.bankId !== 'string' || typeof body.projectId !== 'string') throw new Error('invalid runtime project scope');
-  return { tenantId: body.tenantId, bankId: body.bankId, projectId: body.projectId };
+  const body = await request.clone().json().catch(() => ({})) as { tenantId?: unknown; bankId?: unknown; projectId?: unknown };
+  if (typeof body.tenantId === 'string' && typeof body.bankId === 'string' && typeof body.projectId === 'string') {
+    return { tenantId: body.tenantId, bankId: body.bankId, projectId: body.projectId };
+  }
+  const tenantId = request.headers.get('x-dev-tenant-id');
+  const bankId = request.headers.get('x-dev-bank-id');
+  const projectId = request.headers.get('x-dev-project-id');
+  if (tenantId && bankId && projectId) return { tenantId, bankId, projectId };
+  throw new Error('invalid runtime project scope');
 };
