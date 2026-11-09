@@ -204,6 +204,39 @@ export function createInsight(params: {
   };
 }
 
+// ── Tension Record ─────────────────────────────────────────
+
+export interface TensionRecord {
+  id: string;
+  tenantId: string;
+  bankId: string;
+  insightId: string;
+  contradictingNodeIds: string[];
+  contradictionStrength: number;
+  resolved: boolean;
+  createdAt: Date;
+}
+
+export function createTensionRecord(params: {
+  id: string;
+  tenantId: string;
+  bankId: string;
+  insightId: string;
+  contradictingNodeIds: string[];
+  contradictionStrength: number;
+}): TensionRecord {
+  return {
+    id: params.id,
+    tenantId: params.tenantId,
+    bankId: params.bankId,
+    insightId: params.insightId,
+    contradictingNodeIds: params.contradictingNodeIds,
+    contradictionStrength: params.contradictionStrength,
+    resolved: false,
+    createdAt: new Date(),
+  };
+}
+
 export function createEvidenceLink(params: {
   id: string;
   sourceNodeId: string;
