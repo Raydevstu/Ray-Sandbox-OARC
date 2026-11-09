@@ -18,6 +18,10 @@ Reflective Memory transforms stored facts into evidence-backed insights that evo
 
 These principles are non-negotiable. Every implementation decision must trace back to one of these.
 
+### Schema Rule S1: Never Physically Delete Insights
+
+Insights are immutable historical artifacts. Allowed states: candidate, verified, active, reinforced, archived, invalidated. Deletion is forbidden. Archive them. Invalidate them. Supersede them. But never delete them. This preserves audit history, prediction accuracy tracking, and truth-maintenance chains.
+
 | ID | Principle | Meaning |
 |----|-----------|---------|
 | P1 | Every insight must cite evidence | No insight exists without at least 2 supporting MemoryNode references. An insight without sources is an opinion, not a memory. |

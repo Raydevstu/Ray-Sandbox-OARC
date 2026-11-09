@@ -55,8 +55,48 @@ export const DISTILLED_FACTS_DDL = `
   );
 `;
 
+export const INSIGHTS_DDL = `
+  CREATE TABLE IF NOT EXISTS insights (
+    id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    bank_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    depth INTEGER NOT NULL DEFAULT 1,
+    claim TEXT NOT NULL,
+    supporting_nodes TEXT[] NOT NULL DEFAULT '{}',
+    contradicting_nodes TEXT[] NOT NULL DEFAULT '{}',
+    confidence REAL NOT NULL DEFAULT 0.3,
+    stability REAL NOT NULL DEFAULT 0.5,
+    predictive_value REAL,
+    parent_insights TEXT[] NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'candidate',
+    prediction_count INTEGER NOT NULL DEFAULT 0,
+    correct_predictions INTEGER NOT NULL DEFAULT 0,
+    importance REAL NOT NULL DEFAULT 80,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_validated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (tenant_id, bank_id, id),
+    FOREIGN KEY (tenant_id, bank_id) REFERENCES banks(tenant_id, id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_insights_status ON insights(tenant_id, bank_id, status);
+  CREATE INDEX IF NOT EXISTS idx_insights_type ON insights(tenant_id, bank_id, type);
+  CREATE TABLE IF NOT EXISTS evidence_links (
+    id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    bank_id TEXT NOT NULL,
+    source_node_id TEXT NOT NULL,
+    target_node_id TEXT NOT NULL,
+    relation TEXT NOT NULL,
+    weight REAL NOT NULL DEFAULT 1.0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (tenant_id, bank_id, id),
+    FOREIGN KEY (tenant_id, bank_id) REFERENCES banks(tenant_id, id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_evidence_links_source ON evidence_links(tenant_id, bank_id, source_node_id);
+  CREATE INDEX IF NOT EXISTS idx_evidence_links_target ON evidence_links(tenant_id, bank_id, target_node_id);
+`;
+
 export const DECISION_TRACES_DDL = `
-  CREATE TABLE IF NOT EXISTS decision_traces (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL DEFAULT 'sandbox-tenant',
     bank_id TEXT NOT NULL,
