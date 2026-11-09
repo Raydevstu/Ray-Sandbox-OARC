@@ -52,10 +52,12 @@ async function main() {
   for (const s of sessions) {
     const sid = String(s.id);
     const cursor = RESYNC ? 0 : Number(cursors[sid] ?? 0);
+    const order = RESYNC ? "DESC" : "ASC";
     const rows = db
       .prepare(`SELECT role, COALESCE(content,'') AS content, COALESCE(timestamp,0) AS ts
-                FROM messages WHERE session_id = ? AND COALESCE(timestamp,0) > ? ORDER BY ts ASC LIMIT 200`)
+                FROM messages WHERE session_id = ? AND COALESCE(timestamp,0) > ? ORDER BY ts ${order} LIMIT 200`)
       .all(sid, cursor);
+    if (RESYNC) rows.reverse();
     const msgs = rows.filter((r) => String(r.content ?? "").trim()).map((r) => ({
       role: String(r.role ?? "user"),
       content: String(r.content).trim().slice(0, 4000),
