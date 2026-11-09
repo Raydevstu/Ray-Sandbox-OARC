@@ -114,6 +114,7 @@ export const INSIGHTS_DDL = `
 `;
 
 export const DECISION_TRACES_DDL = `
+  CREATE TABLE IF NOT EXISTS decision_traces (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL DEFAULT 'sandbox-tenant',
     bank_id TEXT NOT NULL,
@@ -126,6 +127,42 @@ export const DECISION_TRACES_DDL = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
   CREATE INDEX IF NOT EXISTS idx_decision_traces_bank ON decision_traces(tenant_id, bank_id);
+`;
+
+export const PREDICTIONS_DDL = `
+  CREATE TABLE IF NOT EXISTS predictions (
+    id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    bank_id TEXT NOT NULL,
+    insight_id TEXT NOT NULL,
+    claim TEXT NOT NULL,
+    context TEXT NOT NULL,
+    confidence REAL NOT NULL DEFAULT 0.5,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    evaluated_at TIMESTAMPTZ,
+    outcome TEXT,
+    actual_result TEXT,
+    PRIMARY KEY (tenant_id, bank_id, id),
+    FOREIGN KEY (tenant_id, bank_id) REFERENCES banks(tenant_id, id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_predictions_bank ON predictions(tenant_id, bank_id);
+`;
+export const WARNINGS_DDL = `
+  CREATE TABLE IF NOT EXISTS warnings (
+    id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    bank_id TEXT NOT NULL,
+    prediction_id TEXT NOT NULL,
+    insight_id TEXT NOT NULL,
+    message TEXT NOT NULL,
+    risk_level TEXT NOT NULL DEFAULT 'medium',
+    supporting_evidence TEXT[] NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dismissed_at TIMESTAMPTZ,
+    PRIMARY KEY (tenant_id, bank_id, id),
+    FOREIGN KEY (tenant_id, bank_id) REFERENCES banks(tenant_id, id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_warnings_bank ON warnings(tenant_id, bank_id);
 `;
 
 export type StoredFact = DistilledFact & { provenance?: Provenance };

@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { DISTILLED_FACTS_DDL, DECISION_TRACES_DDL, INSIGHTS_DDL, REFLECTION_CLUSTERS_DDL } from "./pg-lifecycle";
+import { DISTILLED_FACTS_DDL, DECISION_TRACES_DDL, INSIGHTS_DDL, REFLECTION_CLUSTERS_DDL, PREDICTIONS_DDL, WARNINGS_DDL } from "./pg-lifecycle";
 
 let pool: Pool | null = null;
 
@@ -43,4 +43,6 @@ export async function ensureSchema() {
   await p.query(DECISION_TRACES_DDL);
   await p.query(INSIGHTS_DDL);
   await p.query(REFLECTION_CLUSTERS_DDL);
+  await p.query(PREDICTIONS_DDL);
+  await p.query(WARNINGS_DDL);
 }

@@ -8,12 +8,12 @@ export async function GET() {
     if (!pool) throw new Error("no pg pool");
 
     // Knowledge Health
-    const factCount = await pool.query("SELECT COUNT(*)::int AS n FROM facts WHERE deleted_at IS NULL");
+    const factCount = await pool.query("SELECT COUNT(*)::int AS n FROM facts");
     const insightCount = await pool.query("SELECT COUNT(*)::int AS n FROM insights WHERE status='active'");
     const metaInsightCount = await pool.query("SELECT COUNT(*)::int AS n FROM insights WHERE status='active' AND depth > 1");
     const archivedInsightCount = await pool.query("SELECT COUNT(*)::int AS n FROM insights WHERE status='archived'");
     const invalidatedCount = await pool.query("SELECT COUNT(*)::int AS n FROM insights WHERE status='invalidated'");
-    const coldClusterCount = await pool.query("SELECT COUNT(*)::int AS n FROM reflection_clusters WHERE status='cold'");
+    const coldClusterCount = await pool.query("SELECT COUNT(*)::int AS n FROM reflection_clusters");
 
     // Prediction Health
     const predGenerated = await pool.query("SELECT COUNT(*)::int AS n FROM predictions");
@@ -24,16 +24,16 @@ export async function GET() {
 
     // Recall Effectiveness
     const totalRecalls = await pool.query("SELECT COUNT(*)::int AS n FROM decision_traces");
-    const insightRecalls = await pool.query("SELECT COUNT(*)::int AS n FROM decision_traces WHERE insight_count > 0");
+    const insightRecalls = await pool.query("SELECT COUNT(*)::int AS n FROM decision_traces WHERE jsonb_array_length(items) > 0");
 
     // Compression
     const factsAndInsights = await pool.query(
-      "SELECT (SELECT COUNT(*)::int FROM facts WHERE deleted_at IS NULL) + (SELECT COUNT(*)::int FROM insights WHERE status='active') AS n"
+      "SELECT (SELECT COUNT(*)::int FROM facts) + (SELECT COUNT(*)::int FROM insights WHERE status='active') AS n"
     );
 
     // Truth Maintenance
-    const contradictions = await pool.query("SELECT COUNT(*)::int AS n FROM insights WHERE status='archived' AND replacement_id IS NOT NULL");
-    const supersedeLinks = await pool.query("SELECT COUNT(*)::int AS n FROM evidence_links WHERE type='supersedes'");
+    const contradictions = await pool.query("SELECT COUNT(*)::int AS n FROM insights WHERE status='archived'");
+    const supersedeLinks = await pool.query("SELECT COUNT(*)::int AS n FROM evidence_links WHERE relation='supersedes'");
 
     // Calculate derived metrics
     const totalFacts = factCount.rows[0].n;
