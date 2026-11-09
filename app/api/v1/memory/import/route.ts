@@ -6,7 +6,7 @@ import { apiFailure } from '../../../../../lib/runtime/api-envelope';
 import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
 import { importOnce } from '../../../../../lib/server/import-worker';
 import { parseImportBody } from '../../../../../lib/server/import-route-helper';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const STATE_FILE = join(process.cwd(), '.data', 'import-watchers.json');
@@ -24,7 +24,6 @@ function loadState(): WatcherState {
 
 function saveState(s: WatcherState): void {
   try {
-    const { mkdirSync, writeFileSync } = require('fs');
     mkdirSync(join(process.cwd(), '.data'), { recursive: true });
     writeFileSync(STATE_FILE, JSON.stringify(s));
   } catch {
