@@ -105,7 +105,36 @@ export interface Warning {
   dismissedBy: string | null;
 }
 
-// ── Factory helpers ────────────────────────────────────────
+// ── Reflection Cluster ─────────────────────────────────────
+
+export interface ReflectionCluster {
+  id: string;
+  tenantId: string;
+  bankId: string;
+  entity: string;
+  nodeIds: string[];
+  insightIds: string[];
+  lastReflectedAt: Date | null;
+  nextReflectAt: Date | null;
+}
+
+export function createReflectionCluster(params: {
+  id: string;
+  tenantId: string;
+  bankId: string;
+  entity: string;
+}): ReflectionCluster {
+  return {
+    id: params.id,
+    tenantId: params.tenantId,
+    bankId: params.bankId,
+    entity: params.entity,
+    nodeIds: [],
+    insightIds: [],
+    lastReflectedAt: null,
+    nextReflectAt: null,
+  };
+}
 
 export function createFact(params: {
   id: string;

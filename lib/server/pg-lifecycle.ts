@@ -55,8 +55,25 @@ export const DISTILLED_FACTS_DDL = `
   );
 `;
 
+export const REFLECTION_CLUSTERS_DDL = `
+  CREATE TABLE IF NOT EXISTS reflection_clusters (
+    id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    bank_id TEXT NOT NULL,
+    entity TEXT NOT NULL,
+    node_ids TEXT[] NOT NULL DEFAULT '{}',
+    insight_ids TEXT[] NOT NULL DEFAULT '{}',
+    last_reflected_at TIMESTAMPTZ,
+    next_reflect_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (tenant_id, bank_id, id),
+    FOREIGN KEY (tenant_id, bank_id) REFERENCES banks(tenant_id, id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_clusters_entity ON reflection_clusters(tenant_id, bank_id, entity);
+`;
+
 export const INSIGHTS_DDL = `
-  CREATE TABLE IF NOT EXISTS insights (
+    CREATE TABLE IF NOT EXISTS insights (
     id TEXT NOT NULL,
     tenant_id TEXT NOT NULL,
     bank_id TEXT NOT NULL,
