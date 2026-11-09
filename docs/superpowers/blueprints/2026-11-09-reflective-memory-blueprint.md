@@ -22,6 +22,10 @@ These principles are non-negotiable. Every implementation decision must trace ba
 
 Insights are immutable historical artifacts. Allowed states: candidate, verified, active, reinforced, archived, invalidated. Deletion is forbidden. Archive them. Invalidate them. Supersede them. But never delete them. This preserves audit history, prediction accuracy tracking, and truth-maintenance chains.
 
+### Schema Rule G1: Every EvidenceLink Must Reference an Existing MemoryNode
+
+At creation time, both sourceNodeId and targetNodeId must reference existing MemoryNodes (Fact or Insight) in the same tenant/bank. Enforced via application-level validation (and optionally FK constraints). An evidence link to a non-existent node is invalid and must be rejected.
+
 | ID | Principle | Meaning |
 |----|-----------|---------|
 | P1 | Every insight must cite evidence | No insight exists without at least 2 supporting MemoryNode references. An insight without sources is an opinion, not a memory. |
