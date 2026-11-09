@@ -6,6 +6,7 @@ import { apiFailure } from '../../../../../lib/runtime/api-envelope';
 import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
 import { watcherStatus } from '../../../../../lib/server/watcher-loop';
 import { saveDistilledFacts, deleteChatSessionFacts } from '../../../../../lib/server/pg-lifecycle';
+import { upsertSession } from '../../../../../lib/server/session-repository';
 import {
   parsePushBody,
   bankIdForCwd,
@@ -87,7 +88,16 @@ export async function POST(request: Request) {
         JSON.stringify({ at: Date.now(), sessionId: push.sessionId, messages: push.messages.length }),
         JSON.stringify({ source: 'hermes-push', sessionId: push.sessionId, at: Date.now() })]
     );
-    const latest = Math.max(...push.messages.map((m) => m.timestamp));
+    const latestTs = Math.max(...push.messages.map((m) => m.timestamp));
+    await upsertSession(pool, {
+      sessionId: push.sessionId,
+      tenantId,
+      bankId,
+      cwd: push.cwd,
+      lastActivityAt: new Date(latestTs * 1000).toISOString(),
+      messageCount: push.messages.length,
+    }).catch(() => {});
+    const latest = latestTs;
     return NextResponse.json({ ok: true, data: { bankId, created, imported: facts.length, messages: push.messages.length, latest, categories: [...new Set(facts.map((f) => f.category))] } }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'push failed';

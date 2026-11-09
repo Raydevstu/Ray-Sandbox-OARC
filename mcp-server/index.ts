@@ -18,6 +18,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     { name: "create_bank", description: "Create a new memory bank", inputSchema: { type: "object", properties: { name: { type: "string" }, background: { type: "string" } }, required: ["name"] } },
     { name: "reflect", description: "Reflect on stored memories", inputSchema: { type: "object", properties: { bankId: { type: "string" }, limit: { type: "number" } } } },
     { name: "context_pack", description: "Build 1500-token distilled context pack from facts", inputSchema: { type: "object", properties: { task: { type: "string" }, query: { type: "string" }, facts: { type: "string" } }, required: ["query", "facts"] } },
+    { name: "get_last_project", description: "Get the most recently active project with session details", inputSchema: { type: "object", properties: {} } },
+    { name: "list_recent_projects", description: "List recently active projects ordered by last activity", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
   ],
 }));
 
@@ -37,14 +39,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "recall") {
       if (!pool) return { content: [{ type: "text", text: "PostgreSQL not configured." }] };
       const result = await pool.query(
-        `SELECT text, confidence FROM memory_facts WHERE bank_id = $1 ORDER BY mentioned_at DESC LIMIT $2`,
+        `SELECT claim as text, importance, category, entity FROM facts WHERE bank_id = $1 ORDER BY created_at DESC LIMIT $2`,
         [a.bankId ?? "default", a.limit ?? 10]
       );
       return { content: [{ type: "text", text: JSON.stringify(result.rows) }] };
     }
     if (name === "list_banks") {
       if (!pool) return { content: [{ type: "text", text: "[]" }] };
-      const result = await pool.query(`SELECT DISTINCT bank_id FROM memory_facts`);
+      const result = await pool.query(`SELECT DISTINCT bank_id FROM facts`);
       return { content: [{ type: "text", text: JSON.stringify(result.rows.map((r: any) => r.bank_id)) }] };
     }
     if (name === "create_bank") {
@@ -54,7 +56,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "reflect") {
       if (!pool) return { content: [{ type: "text", text: "PostgreSQL not configured." }] };
       const result = await pool.query(
-        `SELECT text, confidence FROM memory_facts WHERE bank_id = $1 ORDER BY mentioned_at DESC LIMIT $2`,
+        `SELECT claim as text, importance, category, entity FROM facts WHERE bank_id = $1 ORDER BY created_at DESC LIMIT $2`,
         [a.bankId ?? "default", a.limit ?? 5]
       );
       const summary = result.rows.map((r: any) => r.text).join("; ");
@@ -86,6 +88,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         used += t;
       }
       return { content: [{ type: "text", text: JSON.stringify({ task: a.task ?? a.query, facts: packed, tokensUsed: used }) }] };
+    }
+    if (name === "get_last_project") {
+      if (!pool) return { content: [{ type: "text", text: "PostgreSQL not configured." }] };
+      const result = await pool.query(
+        `SELECT session_id, bank_id, cwd, project_name, last_activity_at, message_count FROM sessions WHERE tenant_id = 'sandbox-tenant' ORDER BY last_activity_at DESC LIMIT 1`
+      );
+      if (result.rows.length === 0) return { content: [{ type: "text", text: JSON.stringify({ project: null }) }] };
+      const session = result.rows[0];
+      const factsResult = await pool.query(
+        `SELECT entity, category, claim, importance FROM facts WHERE bank_id = $1 ORDER BY importance DESC LIMIT 5`,
+        [session.bank_id]
+      );
+      return { content: [{ type: "text", text: JSON.stringify({ project: session.project_name, cwd: session.cwd, lastActivity: session.last_activity_at, messageCount: session.message_count, topFacts: factsResult.rows }) }] };
+    }
+    if (name === "list_recent_projects") {
+      if (!pool) return { content: [{ type: "text", text: "PostgreSQL not configured." }] };
+      const result = await pool.query(
+        `SELECT DISTINCT ON (cwd) cwd, project_name, last_activity_at, bank_id FROM sessions WHERE tenant_id = 'sandbox-tenant' ORDER BY cwd, last_activity_at DESC LIMIT $1`,
+        [a.limit ?? 10]
+      );
+      return { content: [{ type: "text", text: JSON.stringify(result.rows) }] };
     }
     return { content: [{ type: "text", text: `Unknown tool: ${name}` }] };
   } catch (err) {
