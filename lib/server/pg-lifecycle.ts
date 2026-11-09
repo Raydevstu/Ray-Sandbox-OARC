@@ -165,6 +165,23 @@ export const WARNINGS_DDL = `
   CREATE INDEX IF NOT EXISTS idx_warnings_bank ON warnings(tenant_id, bank_id);
 `;
 
+export const SESSIONS_DDL = `
+  CREATE TABLE IF NOT EXISTS sessions (
+    session_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL DEFAULT 'sandbox-tenant',
+    bank_id TEXT NOT NULL,
+    cwd TEXT NOT NULL,
+    project_name TEXT,
+    last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    message_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (tenant_id, session_id),
+    FOREIGN KEY (tenant_id, bank_id) REFERENCES banks(tenant_id, id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_sessions_bank_activity ON sessions(tenant_id, bank_id, last_activity_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_sessions_tenant_activity ON sessions(tenant_id, last_activity_at DESC);
+`;
+
 export type StoredFact = DistilledFact & { provenance?: Provenance };
 
 export function factIdFor(entity: string, content: string): string {
