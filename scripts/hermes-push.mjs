@@ -86,7 +86,9 @@ async function main() {
   }
   db.close();
   saveCursors(cursors);
-  console.log(`done: ${pushedSessions} sessions, ${pushedMessages} messages`);
+  if (pushedSessions > 0) {
+    console.log(`done: ${pushedSessions} sessions, ${pushedMessages} messages`);
+  }
 }
 
 main().catch((e) => {
