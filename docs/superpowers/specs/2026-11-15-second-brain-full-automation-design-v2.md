@@ -5,6 +5,8 @@
 
 **Codebase pin (F1):** Build against **`Fusion`** (`origin/Fusion@82586ac` + local unpushed work, local HEAD `3f3ce22` at time of writing). `main` is the browser-only simulation and must never be the build target. **Gate M0:** push the current local slice, record the exact commit here, and either merge Fusion → main or rename branches so `origin/HEAD` is the real hub.
 
+**M0 pin (recorded 2026-11-15):** pushed as `oarc/Fusion@d842190` (docs commit). `origin` (huri70459-png/hindsight-sandbox) rejects this machine's credentials (403, authenticated as Raydevstu); **`oarc` (Raydevstu/Ray-Sandbox-OARC) is the push target**. Tool versions: OpenCode CLI `1.18.13`, Codex CLI `0.147.0`. Branch decision: `main` stays retired for the hub (browser simulation); documented here rather than merged — merging is the user's call.
+
 **Review provenance (verified locally 2026-11-15):** F1 confirmed (`app/api`, `docker-compose.yml`, `lib/server/hermes-push.ts` absent from `origin/main` tree; present on `Fusion`); F2 confirmed (`hermes-push/route.ts:42` returns `ok:true, state:'localStorage-only'`; `:118/:130` report `connected:true` without a pool); F3 confirmed (`structureTranscript` → `saveDistilledFacts` at `:67–74` stores the raw transcript as distilled facts); F9 confirmed (`scripts/hindsight-memory-capture.mjs` absent locally too; `hermes-push.mjs`, `hermes-automation-smoke.mjs`, `hermes-mcp-proxy.mjs`, `codex-host-bridge.mjs`, `postgres-backup.mjs`, `postgres-smoke-test.mjs` all present). F4/F5/F7 are external-source claims gated behind M0 probes (M0-5/6/7) rather than trusted.
 
 ## 1. Intent, goals, non-goals, anti-goals
