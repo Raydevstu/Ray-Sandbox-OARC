@@ -4,6 +4,7 @@ import { parseRuntimeConfig } from '@/lib/runtime/config';
 import { createRuntimeRepository, isRuntimeStoreConfigured } from '@/lib/runtime/repository';
 import { getCaptureStatus } from '@/lib/runtime/capture-status';
 import { deriveOperationsStatus } from '@/lib/runtime/operations-status';
+import { getRetentionSweeperStatus } from '@/lib/server/retention-sweeper';
 
 export async function GET(request: Request) {
   try {
@@ -14,6 +15,6 @@ export async function GET(request: Request) {
     const scope = { tenantId, bankId };
     authorize(principal, 'jobs:claim', scope);
     const jobs = await createRuntimeRepository(scope).getProjectJobHealth(scope);
-    return NextResponse.json({ ok: true, data: { jobs, capture: getCaptureStatus(), ...deriveOperationsStatus(jobs) } });
+    return NextResponse.json({ ok: true, data: { jobs, capture: getCaptureStatus(), retentionSweeper: getRetentionSweeperStatus(), ...deriveOperationsStatus(jobs) } });
   } catch (error) { return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'operations read failed' }, { status: 401 }); }
 }

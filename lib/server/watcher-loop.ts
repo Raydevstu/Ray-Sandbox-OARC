@@ -5,6 +5,7 @@ import { normalizeCwd } from "./hermes-sessions";
 import { readHermesSessions, readSessionMessages, hermesDbPath } from "./hermes-store";
 import { syncBankFromSessions } from "./hermes-sync";
 import { saveDistilledFacts } from "./pg-lifecycle";
+import { runRetentionSweeper, getRetentionSweeperStatus } from "./retention-sweeper";
 
 export const PROJECTS_ROOT = process.env.PROJECTS_ROOT ?? "/projects";
 const STATE_KEY = "watcher-loop";
@@ -15,9 +16,14 @@ type LoopState = {
   lastRun: number;
   lastResult: Record<string, { scanned: number; imported: number; sessions?: number; chatMessages?: number }>;
   cursors: Map<string, number>;
+  nextSweeperAt: number;
 };
 
-const state: LoopState = { running: false, lastRun: 0, lastResult: {}, cursors: new Map() };
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const SWEEPER_JITTER_MS = 15 * 60 * 1000;
+const nextSweeperDelay = () => SIX_HOURS_MS + Math.floor((Math.random() * 2 - 1) * SWEEPER_JITTER_MS);
+
+const state: LoopState = { running: false, lastRun: 0, lastResult: {}, cursors: new Map(), nextSweeperAt: 0 };
 
 export function resolveWatchPath(root: string, input: string): string | null {
   const trimmed = input.trim().replace(/\\/g, "/");
@@ -92,6 +98,17 @@ async function tick(): Promise<void> {
     }
     state.lastRun = Date.now();
     state.lastResult = result;
+    // Retention sweeper cadence: ~6h ± 15m jitter (best-effort, in-process).
+    const now = Date.now();
+    if (state.nextSweeperAt === 0) state.nextSweeperAt = now + nextSweeperDelay();
+    if (now >= state.nextSweeperAt) {
+      state.nextSweeperAt = now + nextSweeperDelay();
+      try {
+        await runRetentionSweeper({ pool: pool as any, now: new Date(now) });
+      } catch (e) {
+        console.warn('retention sweeper failed:', e);
+      }
+    }
   } catch (e) {
     console.warn("watcher loop tick failed:", e);
   }
@@ -112,8 +129,8 @@ export function stopWatcherLoop(): void {
   state.running = false;
 }
 
-export function watcherStatus(): { running: boolean; lastRun: number; hermesDb: boolean; lastResult: Record<string, { scanned: number; imported: number; sessions?: number; chatMessages?: number }> } {
-  return { running: state.running, lastRun: state.lastRun, hermesDb: hermesDbPath() !== null, lastResult: state.lastResult };
+export function watcherStatus(): { running: boolean; lastRun: number; hermesDb: boolean; lastResult: Record<string, { scanned: number; imported: number; sessions?: number; chatMessages?: number }>; sweeper: ReturnType<typeof getRetentionSweeperStatus> } {
+  return { running: state.running, lastRun: state.lastRun, hermesDb: hermesDbPath() !== null, lastResult: state.lastResult, sweeper: getRetentionSweeperStatus() };
 }
 
 export { STATE_KEY };
