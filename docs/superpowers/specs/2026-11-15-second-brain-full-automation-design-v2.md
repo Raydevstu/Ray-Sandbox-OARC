@@ -233,3 +233,41 @@ Browser extension + ChatGPT custom-GPT Actions / scheduled export, same import e
 4. Dashboard card placement/UX. (Builder's call.)
 
 The M0 checklist and implementation skeletons (shared core, Codex hook, OpenCode plugin) live in `2026-11-15-second-brain-m0-checklist.md` alongside this doc; `VERIFY(M0-n)` markers in the skeletons map to checklist items.
+
+## 9. Verification evidence (continuation, 2026-11-15/16 local)
+
+**Commits/pushes (oarc/Fusion):** `efeabe7` (Task 13 card+status relay), `e565d45` (Task 14 backfill/smoke/CI), `66a780e` (import→distill→facts bridge + local compose audit scope `APEX_AUDIT_TENANT_ID=sandbox-tenant`, `APEX_AUDIT_BANK_ID=secondbrainog`, `APEX_AUDIT_PROJECT_ID=SECOND-BRAIN`), `e928a19` (import workspacePath: unknown derivations advisory for authorized scopes). Rebuilt/redeployed app via `docker compose up -d --build app` after `66a780e` and again after `e928a19` (app healthy, postgres healthy).
+
+### Gap closure: deployed admin endpoints (configured + operable)
+- **Config:** `docker-compose.yml` app env now sets `APEX_AUDIT_TENANT_ID/BANK_ID/PROJECT_ID` for local deployment (staging/production already required them).
+- **`GET /api/project-memory/status` (post-rebuild):** `ok:true`, enriched shape with `capture`, `clientStatuses:[]`, `retentionSweeper:null`, `storeMode:"postgres"` (in-memory counters reset on restart as expected).
+- **`GET /api/project-memory/operations` (authenticated dev principal, jobs:claim):** `ok:true`, returns `jobs`, `capture`, `retentionSweeper`, derived status/activeFailure/historicalLastError (live DB state reflected honestly; endpoint operable).
+- **`POST /api/project-memory/sweeper-run` (authenticated, jobs:claim):** `ok:true`, evidence `{"scanned":0,"softDeleted":0,"purged":0,"durationMs":87,...,"status":{"...","at":"2026-11-15T22:06:22.371Z"}}` (initial) and `{"scanned":0,"softDeleted":0,"purged":0,"durationMs":81,...,"at":"2026-11-15T22:14:06.388Z"}` (post-restore). No aged rows existed to delete (expected).
+
+### DoD 1 (import→distill→facts visibility, recall)
+- **Fix:** `/api/project-memory/import` now distills accepted imported conversation content into canonical `facts` via `distillSession` + `saveDistilledFacts` (idempotent upsert, best-effort bridge, does not fail successful event import). This closes the M0-4/open-question-3 gap ("import pipeline does NOT produce distilled facts; recall reads facts").
+- **Backfill (idempotent):** `node scripts/ray-backfill.mjs` run with `conversationId=second-brain-design-2026-11-15`, `platform=opencode`, `provenance=backfill`, `workspacePath=D:\Projects\Secondosaistudioog`, `tenant/bank/project=sandbox-tenant/secondbrainog/SECOND-BRAIN` → `ok:true`, `imported:6 accepted:6`; re-run safe (dedup/accepted behavior observed). Post-fix re-run after rebuild populated distilled facts.
+- **DB evidence:** `facts` contains `df-d-projects-secondosaistudioog-44ou4x` (entity `D:\Projects\Secondosaistudioog`, category `workflow`, source evidence `import:opencode`, claim includes `opencode import: second-brain-design-2026-11-15 (backfill:docs/superpowers/specs/2026-11-15-second-brain-full-automation-design-v2.md)` and design v2 snippets/DoD content including sweeper/91-day/degraded-truth/windows-identity references). Direct probe import (`conversationId dbg-2026`) also produced `df-second-brain-yv4wmz`, confirming bridge.
+- **Recall evidence (scoped POST `/api/v1/memory/recall`, bank+project+tenant):** targeted query for `second-brain-design-2026-11-15 backfill full automation design v2 retention sweeper` returned the backfilled design fact as top result (`traceId pg-1794780648388` context in local run). **Caveat:** "fresh OpenCode session in D:\Projects\Secondosaistudioog" end-to-end client injection was not interactively exercised from this agent session; hub recall visibility (required substrate) is verified.
+
+### UI tests (Playwright)
+- **Attempted:** `npx playwright test tests/e2e/second-brain-card.spec.ts tests/e2e/project-dashboard.spec.ts --project=chromium`.
+- **Result:** **blocked in this environment** — Playwright `webServer` (`npm run dev -p 3000`, reuseExistingServer) timed out; dev server showed Next/webpack/watchpack module-resolution issues (`pg`/`fs`/`pg-native` trace, `EINVAL lstat D:\Documents and Settings`/`pagefile.sys`, lockfile-root warning) and did not become ready. Specs and route-mocked test implementations exist; run requires a healthy Playwright/dev-server environment.
+
+### DoD 11 (Postgres-down degraded truth) — partial live probe
+- Stopped Postgres (`docker compose stop postgres`, restarted/restored after): `GET /api/v1/memory/hermes-push` → `{"ok":false,"state":"failed","error":"getaddrinfo ENOTFOUND postgres","retryable":true}` (no `connected:true`); `GET /api/project-memory/operations` → `{"ok":false,"error":"Connection terminated due to connection timeout"}`; `GET /api/project-memory/status` → `ok:true` envelope but `storeMode:"degraded"` with capture state preserved in-process (not claiming healthy store). After restart, `status` returned `storeMode:"postgres"` and `sweeper-run` succeeded. Evidence is partial (targeted endpoints), not a full dashboard-render/Postgres-down E2E assertion.
+
+### Smoke
+- `node scripts/ray-automation-smoke.mjs --local` → PASS (17/17). `npx tsc --noEmit` passed for fix commits.
+
+### Remaining manual/live/destructive or environment-blocked items (not claimed complete)
+- **Playwright e2e green run:** rerun in healthy dev-server environment.
+- **DoD 7:** crash recovery/exactly-once spool replay (stop hub mid-capture, restart, drain, assert stable counts/no duplicates).
+- **DoD 8:** hub-down degradation ≤800ms + `spooled_offline` + restart drain.
+- **DoD 9:** no echo loop over 3 idle sessions with injection (fact-count stability).
+- **DoD 10:** seeded 91-day-old raw events soft-deleted/purged-after-grace, distilled intact, ops-log entry, backup-first, second run no-op (no 91-day candidates present at probe time).
+- **DoD 11:** full degraded-truth coverage including dashboard disconnected state and all push/import routes under Postgres-down conditions.
+- **DoD 12:** windows identity same-bank (case/separators/worktree) and tampered-filter isolation end-to-end with server-side enforcement evidence.
+- **Final human checks:** dashboard card green on live data, opt-out via scratch `.opencode/ray-memory.json` (DoD 3), fake-token end-to-end (DoD 5), fresh OpenCode session recall UX in `D:\Projects\Secondosaistudioog` (DoD 1 client flow), then `finishing-a-development-branch` integration steps.
+
+**Preserved/uncommitted (untouched):** `mcp-server/dist/index.js`, `scripts/hermes-mcp-proxy.mjs`, `scripts/install-ray-memory.ps1`, `.env.opencode.example`, `.opencode/`, `test-results/.last-run.json`, deleted `test-results/tm046-db.png|tm047.png|tm061.png|tm071.png|tm072.png`.
