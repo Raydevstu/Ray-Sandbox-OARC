@@ -1,4 +1,4 @@
-export type CaptureStage = 'received' | 'normalized' | 'persisted' | 'queued' | 'processed' | 'failed';
+export type CaptureStage = 'received' | 'normalized' | 'persisted' | 'queued' | 'processed' | 'failed' | 'skipped_redaction';
 
 export type CaptureStatus = Readonly<{
   state: 'uncaptured' | 'receiving' | 'queued' | 'processed' | 'degraded';
@@ -8,11 +8,12 @@ export type CaptureStatus = Readonly<{
   queued: number;
   processed: number;
   failed: number;
+  skippedRedaction: number;
   lastEventAt: string | null;
   lastMessageId: string | null;
 }>;
 
-const counters: Record<CaptureStage, number> = { received: 0, normalized: 0, persisted: 0, queued: 0, processed: 0, failed: 0 };
+const counters: Record<CaptureStage, number> = { received: 0, normalized: 0, persisted: 0, queued: 0, processed: 0, failed: 0, skipped_redaction: 0 };
 let lastEventAt: string | null = null;
 let lastMessageId: string | null = null;
 
@@ -33,7 +34,7 @@ export function getCaptureStatus(now = Date.now()): CaptureStatus {
         : counters.received > 0
           ? 'receiving'
           : 'uncaptured';
-  return { ...counters, state: age > 15 * 60 * 1000 && state !== 'uncaptured' ? 'degraded' : state, lastEventAt, lastMessageId };
+  return { received: counters.received, normalized: counters.normalized, persisted: counters.persisted, queued: counters.queued, processed: counters.processed, failed: counters.failed, skippedRedaction: counters.skipped_redaction, state: age > 15 * 60 * 1000 && state !== 'uncaptured' ? 'degraded' : state, lastEventAt, lastMessageId };
 }
 
 /**

@@ -7,13 +7,16 @@ import { getPgPool, ensureSchema } from '../../../../../lib/server/pg-client';
 import { watcherStatus } from '../../../../../lib/server/watcher-loop';
 import { saveDistilledFacts, deleteChatSessionFacts } from '../../../../../lib/server/pg-lifecycle';
 import { upsertSession } from '../../../../../lib/server/session-repository';
+import { recordCapture } from '../../../../../lib/runtime/capture-status';
 import {
   parsePushBody,
   bankIdForCwd,
   findBankForCwd,
+  type ParsedPush,
 } from '../../../../../lib/server/hermes-push';
 import { structureTranscript } from '../../../../../lib/engine/chat-structure';
 import { distillSession } from '../../../../../lib/engine/distillation';
+import { redactIncoming } from '../../../../../lib/server/redaction';
 
 // The push endpoint routes itself (cwd → bank), so callers don't carry a
 // project scope. Fall back to the sandbox scope when none is supplied.
@@ -36,6 +39,13 @@ export async function POST(request: Request) {
     const push = parsePushBody(body);
     const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
 
+    // F10/L3: redact the pushed transcript (defense in depth) before hashing,
+    // dedup, and persistence; secret lines are dropped and counted.
+    const redacted = redactIncoming(push);
+    const redactedPush = redacted.payload as ParsedPush;
+    const skipped = redacted.skipped;
+    if (skipped > 0) recordCapture('skipped_redaction', redactedPush.sessionId);
+
     const pool = getPgPool();
     if (!pool) {
       // F2: honest degraded state. Nothing was persisted; success must never be
@@ -56,70 +66,71 @@ export async function POST(request: Request) {
       } catch { cwd = ''; }
       return { bankId: String(r.bank_id), cwdKey: cwd };
     });
-    let bankId = findBankForCwd(known, push.cwd);
+    let bankId: string | null = findBankForCwd(known, redactedPush.cwd);
     let created = false;
     if (!bankId) {
-      bankId = push.bankName
-        ? push.bankName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-        : bankIdForCwd(push.cwd);
+      bankId = redactedPush.bankName
+        ? redactedPush.bankName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        : bankIdForCwd(redactedPush.cwd);
       created = true;
     }
+    const resolvedBankId = bankId;
 
     // F2: authorization runs against the resolved bank scope, not a fallback.
-    authorize(principal, 'memory:write', { tenantId, bankId, projectId: scope.projectId });
+    authorize(principal, 'memory:write', { tenantId, bankId: resolvedBankId, projectId: scope.projectId });
 
-    const facts = structureTranscript(push.sessionId, push.messages, bankId);
+    const facts = structureTranscript(redactedPush.sessionId, redactedPush.messages, resolvedBankId);
     if (facts.length === 0) {
-      return NextResponse.json({ ok: true, data: { bankId, created, imported: 0 } });
+      return NextResponse.json({ ok: true, data: { bankId: resolvedBankId, created, imported: 0 } });
     }
-    if (push.resync) {
-      await deleteChatSessionFacts(pool, tenantId, bankId, push.sessionId);
+    if (redactedPush.resync) {
+      await deleteChatSessionFacts(pool, tenantId, resolvedBankId, redactedPush.sessionId);
     }
 
     // F3: keep the raw transcript retention-eligible (raw evidence) and distill
     // into governed facts — never store the raw transcript text as a fact.
-    const rawContent = push.messages.map((m) => `${m.role === 'assistant' ? 'Assistant' : 'User'}: ${m.content}`).join('\n');
+    const rawContent = redactedPush.messages.map((m) => `${m.role === 'assistant' ? 'Assistant' : 'User'}: ${m.content}`).join('\n');
     await pool.query(
       `INSERT INTO evidence (id, tenant_id, bank_id, fact_id, source, content, provenance, created_at)
        VALUES ($1, $2, $3, $4, 'hermes-push', $5, $6, NOW())
        ON CONFLICT (tenant_id, bank_id, id) DO NOTHING`,
-      [`hermes-push-raw-${bankId}-${push.sessionId}`, tenantId, bankId, `fact-${bankId}-${push.sessionId}`, rawContent, JSON.stringify({ source: 'hermes-push', turnId: push.sessionId, createdAt: Date.now() })]
+      [`hermes-push-raw-${resolvedBankId}-${redactedPush.sessionId}`, tenantId, resolvedBankId, `fact-${resolvedBankId}-${redactedPush.sessionId}`, rawContent, JSON.stringify({ source: 'hermes-push', turnId: redactedPush.sessionId, createdAt: Date.now() })]
     );
     const MAX_FINDING_CHARS = 300;
     const distilled = distillSession({
-      task: `chat:${bankId}`,
+      task: `chat:${resolvedBankId}`,
       events: facts.map((f) => ({ type: 'CHAT_TURN', timestamp: Date.now(), content: f.content.slice(0, MAX_FINDING_CHARS) })),
       findings: facts.map((f) => f.content.slice(0, MAX_FINDING_CHARS)),
     });
-    const stored = distilled.map((d) => ({ ...d, provenance: { source: 'hermes-push', turnId: push.sessionId, createdAt: Date.now() } }));
-    await saveDistilledFacts(pool, tenantId, bankId, stored);
+    const stored = distilled.map((d) => ({ ...d, provenance: { source: 'hermes-push', turnId: redactedPush.sessionId, createdAt: Date.now() } }));
+    await saveDistilledFacts(pool, tenantId, resolvedBankId, stored);
     if (created) {
       await pool.query(
         `INSERT INTO evidence (id, tenant_id, bank_id, source, content, provenance, created_at)
          VALUES ($1, $2, $3, 'bank-watch-path', $4, $5, NOW())
          ON CONFLICT (tenant_id, bank_id, id) DO NOTHING`,
-        [`watch-${bankId}`, tenantId, bankId, push.cwd, JSON.stringify({ path: push.cwd, cwd: push.cwd, at: Date.now() })]
+        [`watch-${resolvedBankId}`, tenantId, resolvedBankId, redactedPush.cwd, JSON.stringify({ path: redactedPush.cwd, cwd: redactedPush.cwd, at: Date.now() })]
       );
     }
     await pool.query(
       `INSERT INTO evidence (id, tenant_id, bank_id, source, content, provenance, created_at)
        VALUES ($1, $2, $3, 'hermes-push-receipt', $4, $5, NOW())
        ON CONFLICT (tenant_id, bank_id, id) DO UPDATE SET content = EXCLUDED.content, provenance = EXCLUDED.provenance, created_at = NOW()`,
-      [`hermes-push-${bankId}`, tenantId, bankId,
-        JSON.stringify({ at: Date.now(), sessionId: push.sessionId, messages: push.messages.length }),
-        JSON.stringify({ source: 'hermes-push', sessionId: push.sessionId, at: Date.now() })]
+      [`hermes-push-${resolvedBankId}`, tenantId, resolvedBankId,
+        JSON.stringify({ at: Date.now(), sessionId: redactedPush.sessionId, messages: redactedPush.messages.length }),
+        JSON.stringify({ source: 'hermes-push', sessionId: redactedPush.sessionId, at: Date.now() })]
     );
-    const latestTs = Math.max(...push.messages.map((m) => m.timestamp));
+    const latestTs = Math.max(...redactedPush.messages.map((m) => m.timestamp));
     await upsertSession(pool, {
-      sessionId: push.sessionId,
+      sessionId: redactedPush.sessionId,
       tenantId,
-      bankId,
-      cwd: push.cwd,
+      bankId: resolvedBankId,
+      cwd: redactedPush.cwd,
       lastActivityAt: new Date(latestTs * 1000).toISOString(),
-      messageCount: push.messages.length,
+      messageCount: redactedPush.messages.length,
     }).catch(() => {});
     const latest = latestTs;
-    return NextResponse.json({ ok: true, data: { bankId, created, imported: stored.length, messages: push.messages.length, latest, categories: [...new Set(stored.map((f) => f.category))] } }, { status: 201 });
+    return NextResponse.json({ ok: true, data: { bankId: resolvedBankId, created, imported: stored.length, messages: redactedPush.messages.length, latest, categories: [...new Set(stored.map((f) => f.category))] } }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'push failed';
     return apiFailure(requestId, message, 'failed', 400, { retryable: true });

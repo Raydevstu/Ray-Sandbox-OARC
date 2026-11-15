@@ -7,6 +7,7 @@ import { importConversationExport, type ImportPlatform } from '@/lib/runtime/cro
 import { createAsyncProjectMemoryDispatcher } from '@/lib/runtime/project-memory-pipeline';
 import { persistCodexProjectEvent } from '@/lib/runtime/codex-ingestion';
 import { recordCapture, getCaptureStatus } from '@/lib/runtime/capture-status';
+import { redactIncoming } from '@/lib/server/redaction';
 
 const platforms = ['codex', 'hermes', 'openai-api', 'chatgpt', 'claude', 'gemini', 'cursor', 'terminal', 'opencode', 'vscode'] as const;
 const MessageSchema = z.record(z.string(), z.unknown());
@@ -16,10 +17,14 @@ export async function POST(request: Request) {
   try {
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
     const input = EnvelopeSchema.parse(await request.json());
-    authorize(principal, 'events:write', input);
+    const redacted = redactIncoming(input);
+    const redactedInput = redacted.payload as typeof input;
+    const skipped = redacted.skipped;
+    if (skipped > 0) recordCapture('skipped_redaction', input.conversationId);
+    authorize(principal, 'events:write', redactedInput);
     if (!isRuntimeStoreConfigured()) return NextResponse.json({ ok: false, error: 'canonical store is not configured' }, { status: 503 });
-    const scope = { tenantId: input.tenantId, bankId: input.bankId };
-    const imported = importConversationExport(scope, input);
+    const scope = { tenantId: redactedInput.tenantId, bankId: redactedInput.bankId };
+    const imported = importConversationExport(scope, redactedInput);
     if (imported.gaps.length) return NextResponse.json({ ok: false, error: imported.gaps[0].reason, gaps: imported.gaps }, { status: 400 });
     const repository = createRuntimeRepository(scope);
     const dispatcher = createAsyncProjectMemoryDispatcher(repository, scope, {
