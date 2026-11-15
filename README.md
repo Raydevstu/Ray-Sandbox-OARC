@@ -1,142 +1,213 @@
-# Hindsight Sandbox
+# Hindsight Sandbox / Ray Memory Hub
 
-**An open-source (MIT) Next.js App Router sandbox and local agent-memory control plane** — it contains browser simulation features plus an optional PostgreSQL-backed runtime, authenticated APIs, MCP/Hermes integration, workers, and operator evidence surfaces. The UI and architecture are inspired by [hindsight.vectorize.io](https://hindsight.vectorize.io/) and the Hindsight technical report.
+**Open-source (MIT) Next.js App Router workspace and local agent-memory hub** inspired by [hindsight.vectorize.io](https://hindsight.vectorize.io/) and the Hindsight technical report.
 
-The browser sandbox can run without a backend, API keys, or LLM calls. The local runtime is a separate evidence path: configure `APEX_DATABASE_URL` for canonical PostgreSQL storage, use authenticated REST/MCP routes for retain/recall, and run the bounded worker for durable projection. Hermes and other connectors are not production-verified merely because a route returns HTTP 200.
+This repository includes:
+- a **browser sandbox/workspace** (memory, prompt, context, learning, orchestration, benchmarks, etc.) that can run without external backend services;
+- an optional **PostgreSQL-backed runtime/hub** with authenticated APIs, capture/import, distillation, scoped recall, sweeper/operations surfaces, and dashboard observability (SECOND-BRAIN).
 
+> **Evidence-first note:** a route returning HTTP 200 is not proof of end-to-end connector correctness. Verify scope, capture status, traces, and recall visibility for the same tenant/bank/project.
+
+---
+
+## Quick start
+
+### A) Local runtime hub (recommended for capture/import/recall/sweeper)
+```powershell
+# from repo root
+docker compose up -d --build
+docker compose ps
 ```
+- App/UI: `http://127.0.0.1:3018` (sandbox dashboard: `/sandbox`)
+- Postgres: `127.0.0.1:5434` (internal `5432`)
+
+Verify:
+```powershell
+curl.exe -sS http://127.0.0.1:3018/api/project-memory/status
+# expect ok:true and data.storeMode:"postgres" (after healthy startup)
+```
+
+Seed/backfill (idempotent) and smoke-check wiring:
+```powershell
+node scripts/ray-backfill.mjs
+node scripts/ray-automation-smoke.mjs --local
+```
+
+### B) UI/sandbox dev mode (Node)
+```powershell
 npm install
-npm run dev        # → http://localhost:3000
+npm run dev   # http://localhost:3000
 ```
+Use this for UI development. For the full Postgres-backed runtime behavior, use the compose/runtime setup and configured env vars.
 
 ---
 
-## What's inside
+## Setup, wiring, and usage
 
-### Landing page (`/`)
-A marketing/docs-style front page in the spirit of the reference site: animated live memory graph hero, headline benchmark bars vs. next-best systems, the coding-agent cost/corrections scatter, the retain → recall → reflect model, four-network memory types, the multi-strategy retrieval pipeline diagram, and a showcase of the six sandbox apps.
+### 1) Runtime configuration (local compose)
+`docker-compose.yml` (local) configures the app with:
+- `APEX_DATABASE_URL` (Postgres)
+- local dev auth flags (`APEX_ALLOW_DEV_PRINCIPAL=true`, `APEX_REQUIRE_JWT=false`) — **local dev only**
+- audit/admin scope envs for operations/sweeper surfaces:
+  - `APEX_AUDIT_TENANT_ID=sandbox-tenant`
+  - `APEX_AUDIT_BANK_ID=secondbrainog`
+  - `APEX_AUDIT_PROJECT_ID=SECOND-BRAIN`
 
-### The Sandbox (`/sandbox`) — an app-router workspace with six mountable apps
+Rebuild/redeploy after env or code changes:
+```powershell
+docker compose up -d --build app
+```
 
-| App | Route | What it does |
+### 2) Core memory hub flow
+1. **Import/capture** conversation events (`POST /api/project-memory/import`, strict scoped envelope).
+2. **Normalize/persist/queue** events into project memory pipeline.
+3. **Distill to canonical facts** (import bridge, idempotent) so recall can surface imported/backfilled content.
+4. **Recall** scoped distilled facts (`POST /api/v1/memory/recall`) for the same `tenantId/bankId/projectId`.
+5. **Observe/operate** via status, operations, sweeper, and dashboard SECOND-BRAIN card.
+
+### 3) Key endpoints
+- `GET  /api/project-memory/status` — capture state, client relay, sweeper status, store mode
+- `POST /api/project-memory/import` — scoped conversation import (strict envelope)
+- `POST /api/v1/memory/recall` — scoped recall over canonical distilled facts
+- `GET  /api/project-memory/operations` — jobs/capture/sweeper/derived ops status (scoped auth)
+- `GET|POST /api/project-memory/sweeper-run` — sweeper status/run
+
+Contracts: `docs/contracts/import.json`, `docs/contracts/recall.json`, `docs/contracts/status.json`
+
+### 4) Example: scoped recall (local dev-principal mode)
+```powershell
+@'
+{"query":"second-brain-design-2026-11-15 full automation","tenantId":"sandbox-tenant","bankId":"secondbrainog","projectId":"SECOND-BRAIN","limit":5}
+'@ | Set-Content -Encoding utf8 recall.json
+
+curl.exe -sS -X POST "http://127.0.0.1:3018/api/v1/memory/recall" `
+  -H "Content-Type: application/json" `
+  -H "x-dev-subject: atlas" `
+  -H "x-dev-tenant-id: sandbox-tenant" `
+  -H "x-dev-scopes: memory:read" `
+  -H "x-dev-bank-id: secondbrainog" `
+  -H "x-dev-project-id: SECOND-BRAIN" `
+  --data-binary "@recall.json"
+```
+
+### 5) Wiring clients/capture (Hermes, OpenCode, Codex, MCP-capable editors)
+- Start **read-only** (`memory_recall`, `memory_trace`, project state, capture status), then enable writes with explicit approval/audit.
+- Use **scoped credentials** (never DB/provider secrets as agent tokens).
+- Verify **same-scope recall visibility** (distilled facts), not just import acceptance.
+- Client status relay files (host): `%LOCALAPPDATA%\ray-memory\status\<platform>.json` (surfaced by status/dashboard when readable).
+
+Integration templates/examples:
+- `docs/integrations/hermes-mcp-command.example.json`
+- `docs/integrations/hermes-mcp-readonly.example.yaml`
+- `docs/integrations/opencode-mcp-readonly.example.json`
+- `docs/HOW-TO-GUIDE.md` (detailed setup/wiring/usage/troubleshooting)
+
+---
+
+## Features & functions
+
+### Memory hub/runtime (SECOND-BRAIN)
+- **Capture/import:** strict envelope, scoped auth, idempotent conversation identity.
+- **Import → distill → facts bridge:** accepted imports distilled into canonical `facts` for recall visibility.
+- **Scoped recall:** recall over canonical distilled facts with server-side scope enforcement/resolution.
+- **Status/observability:** `/api/project-memory/status` and dashboard SECOND-BRAIN card (capture states, client relay, sweeper, store mode, links).
+- **Retention sweeper:** soft-delete/purge lifecycle for aged raw data with grace period; distilled facts exempt; manual/status endpoints.
+- **Operations/audit surfaces:** job/health/capture/sweeper visibility for evidence-driven debugging.
+
+### Sandbox/workspace apps (UI)
+| App | Route | Purpose |
 |---|---|---|
-| **Dashboard** | `/sandbox` | Tier-1 fleet view: KPIs (memories, observations, opinions, links, recall p50, tokens), 48h ops timeline, four-network donut, per-stage latency structure, app-health cards with sparklines, live event stream. |
-| **Memory** | `/sandbox/memory` | The full Hindsight loop: **Retain** transcripts (narrative extraction, entity resolution, 4 link types), **Browser** with network filters + inspector, interactive **Graph** canvas, **Recall** with a complete pipeline trace (4 arms → RRF → cross-encoder → boosts → token packing), **Reflect** with disposition-shaped, cited answers and opinion formation, **Observations** (evidence quotes, proof counts, freshness trends, evolution history) and **Opinions** (confidence trajectories, reinforce/weaken/contradict). |
-| **Prompt Studio** | `/sandbox/prompts` | Versioned templates with `{{variables}}`, live resolved previews, A/B compare, test runs scored against the active bank, disposition sliders (S/L/E/β) that verbalize into the system prompt, directives, and background merging with conflict resolution. |
-| **Context Tuning** | `/sandbox/context` | Every retrieval/consolidation knob: budget (low/mid/high) in fixed or adaptive mode, `max_tokens`, chunk budgets, RRF *k*, reranker cap, per-arm strategy boosts, recency/temporal/proof alphas, dedup threshold, auto-consolidation, observations mission, consolidation strategies (JSON, validated live), type filters — plus a live pipeline preview and the four recommended presets. |
-| **Continuous Learning** | `/sandbox/learning` | A UMA-style loop: chunks stream in, a policy maintains a CRUD memory bank (`memory_add/update/delete/list`), core memory evolves via `update_core`, and Ledger-QA episodes grade latent-state tracking (judge + EM) with learning-curve charts. |
-| **Orchestrator** | `/sandbox/orchestrator` | The node-graph canvas: mount any of 8 node types (the four apps + LLM Router, Data Source, Evaluator, Webhook), drag/zoom/pan, wire typed edges (`facts`, `prompts`, `context`, `feedback`, `events`) port-to-port, pick routing strategies (broadcast / round-robin / priority), run the pipeline with animated packets, and monitor per-node efficiency (ops, p50/p95, error rate, sparklines). |
-| **Evaluation** | `/sandbox/eval` | A runnable benchmark harness (Mem0-style): recall at top_5/top_10/all cutoffs, deterministic judging with reasons, token-efficiency accounting, structured per-question results in the published format, run history with A/B comparison, and a "contribute a benchmark" JSON importer. |
-| **Benchmarks** | `/sandbox/benchmarks` | Published results, sortable and cross-filtered: headline retrieval accuracy, LongMemEval per-category matrix, LoCoMo, Ledger-QA horizons (H=2…500), UMA family averages, and the ten-system construction–serve–accuracy frontier with energy-per-correct-answer. |
-| **Settings** | `/sandbox/settings` | Max customization: dark/light theme, accent hue (0–360°) with presets, density, animations, grid opacity, sidebar state, verbose traces, JSON export/import of the entire workspace, demo reset, bank identity editing. |
+| **Dashboard** | `/sandbox` | Fleet/runtime view + SECOND-BRAIN status card and telemetry surfaces |
+| **Memory** | `/sandbox/memory` | Retain/browse/graph/recall/reflect workflows and inspection |
+| **Prompt Studio** | `/sandbox/prompts` | Prompt/version/test and disposition-aware prompt composition |
+| **Context Tuning** | `/sandbox/context` | Retrieval/context tuning controls and previews |
+| **Continuous Learning** | `/sandbox/learning` | Memory maintenance/learning-loop simulation |
+| **Orchestrator** | `/sandbox/orchestrator` | Node-graph app wiring and pipeline runs |
+| **Evaluation** | `/sandbox/eval` | Benchmark/eval harness views and comparisons |
+| **Benchmarks** | `/sandbox/benchmarks` | Published benchmark visualizations |
+| **Integrations** | `/sandbox/integrations` | Integration/config surfaces and examples |
+| **Settings** | `/sandbox/settings` | Theme/customization/workspace controls |
+| **Docs & Guides** | `/sandbox/docs` | In-app setup, wiring, usage, features, troubleshooting |
 
-Plus: **⌘K / Ctrl+K command palette**, bank switcher in the top bar, collapsible sidebar, and full localStorage persistence (theme applies before first paint — no flash).
-
-### Mem0-inspired operational layer (added after the Mem0 docs review)
-
-- **Entity-scoped memory** — `user_id / agent_id / app_id / run_id` on every fact, with speaker attribution on the extraction path (user lines → user_id, assistant lines → agent_id; `infer=false` verbatim records carry both) and scoped bulk delete.
-- **Memory Filters v2** — nested `AND/OR/NOT` DSL with `eq/ne/in/gt/gte/lt/lte/contains/icontains`, `*` wildcards, implicit flat-AND, strict allow-list validation — editable via a visual builder or raw JSON, applied in the browser and before recall arms run.
-- **Update / batch update / audit** — `memory_update` with revision history (previous text preserved), immutable flag (delete + re-add), re-categorization on update.
-- **Auto-categorization** — bank-level category catalog; retains auto-tag facts by content semantics; category facets in the browser.
-- **Extraction steering** — per-call `includes` / `excludes` / `custom_instructions`, and `infer=false` verbatim storage.
-- **Rerank toggle** — quick path (RRF-derived scores) vs precision path (cross-encoder), with visible latency delta.
-- **Evaluation harness** — see the Evaluation app above.
-
-### Tier-2 layer (shipped)
-
-- **Write-path modes** — per-bank switch between Consolidating (Hindsight-style refine/reinforce) and ADD-only (Mem0-style: never overwrite; `supersedes` links; recency resolved at query time).
-- **Integrations app** (`/sandbox/integrations`) — REST/SDK/Zapier/n8n/LangGraph snippet generators keyed to the active bank, plus a webhook subscription manager with simulated deliveries and an expandable POST-payload log.
-- **Entity-overlap boost** — tanh-saturated query-entity signal with its own α, visible in recall traces.
-- **TTL** — `expiration_date` per memory; expired records excluded from recall unless audit mode; purge action.
-- **Feedback signals** — 👍/👎 per memory; negatives flag `needs_review` and weaken related opinions.
-
-### Tier-3 layer (shipped)
-
-- **Visual memory** — attach images at retain (in-browser thumbnailing + caption + simulated vision pass); cross-modally retrievable, thumbnails in browser/inspector.
-- **Observability export** — OTel-shaped spans from the event stream, JSONL/CSV/metrics/eval exports, collector bridge snippet, token attribution by operation.
-- **MCP server simulation** — 7-tool manifest + interactive `tools/call` playground executing against live state with real MCP result envelopes.
-- **Entity store** — dedicated Entities tab: canonical index with degree, network mix, co-occurrence graph navigation and boost-signal preview.
-
-See [`docs/mem0-evaluation.md`](./docs/mem0-evaluation.md) for the full feature evaluation and implementation slices.
+(Feature depth varies by sandbox simulation vs runtime-backed paths; verify claims against runtime evidence where needed.)
 
 ---
 
-## Architecture
+## Troubleshooting
+
+### `GET /api/project-memory/operations` or `POST /api/project-memory/sweeper-run` returns 503/not configured
+- Ensure `APEX_DATABASE_URL` is set and Postgres is reachable.
+- Ensure `APEX_AUDIT_TENANT_ID` and `APEX_AUDIT_BANK_ID` are configured for admin-scoped routes.
+- Rebuild/redeploy after env changes (`docker compose up -d --build app`).
+
+### Recall returns no imported/backfilled memories
+- Confirm import `imported/accepted` succeeded for the same scope.
+- Confirm deployment includes the import→distill→facts bridge.
+- Re-run idempotent backfill: `node scripts/ray-backfill.mjs`.
+- Query with matching `tenantId/bankId/projectId` and targeted terms.
+
+### Import returns `403 scope denied`
+- Check auth headers/scopes and tenant/bank/project consistency.
+- Validate `workspacePath` hints; known cross-project/tampered mappings are rejected by design.
+
+### `storeMode` is `degraded` or `not_configured`
+- `not_configured`: store URL/config missing.
+- `degraded`: store configured but unhealthy/unreachable from app.
+- Inspect DB/container health, logs, and env configuration.
+
+### `clientStatuses` empty in status/dashboard
+- Status relay reads local host status files (`%LOCALAPPDATA%\ray-memory\status\<platform>.json` on Windows). Containerized app may not see host-local files unless mounted/relayed.
+
+### Playwright e2e webServer/dev startup fails
+- `playwright.config.ts` starts `next dev -p 3000` (reuse existing server). Some local environments hit dev/watchpack/module-resolution issues; run in a healthy dev environment or target an already-running server with adjusted config.
+
+### Operations shows degraded/active failures
+- Often reflects honest runtime/job state (pending jobs, historical errors), not endpoint misconfiguration. Inspect the operations payload and logs.
+
+---
+
+## Useful scripts
+- `node scripts/ray-backfill.mjs` — idempotent design backfill/import
+- `node scripts/ray-automation-smoke.mjs --local` — CI-safe wiring/artifact checks
+- `npm run typecheck` / `npm test` — static checks and test suite
+- `npm run db:migrate:postgres`, `npm run smoke:postgres` — DB/migration/smoke helpers
+- `npm run hermes:automation:smoke` — Hermes automation smoke (environment-dependent)
+
+## Documentation
+- **In-app:** `http://127.0.0.1:3018/sandbox/docs`
+- **How-to guide:** `docs/HOW-TO-GUIDE.md`
+- **Design/spec & evidence:** `docs/superpowers/specs/2026-11-15-second-brain-full-automation-design-v2.md`
+- **Contracts:** `docs/contracts/*.json`
+- **Integrations:** `docs/integrations/*`
+- **Additional references:** `docs/fusion-guide.md`, `docs/mem0-evaluation.md`, `docs/evidence-matrix.md`
+
+## Architecture (high level)
 
 ```
-app/                      # Next.js App Router
-  page.tsx                # landing (server component)
-  sandbox/                # workspace shell + 6 app routes
-components/
-  ui.tsx                  # design-system primitives (zero deps beyond clsx)
-  charts.tsx              # hand-rolled SVG charts: line, bars, donut, gauge, scatter, histogram
-  landing/                # hero graph + landing sections
-  memory/                 # MemoryGraph canvas + RecallTraceView
-  shell/                  # sidebar/topbar layout, command palette, theme bootstrap
+app/                      # Next.js App Router (landing + sandbox + API routes)
+components/               # UI, charts, memory/orchestrator components, shell
 lib/
-  types.ts                # domain model (facts, observations, opinions, links, traces, filters, evals…)
-  engine/
-    nlp.ts                # hashed embeddings, BM25, temporal parser, entities, CE proxy
-    retain.ts             # narrative extraction + attribution/scoping + steering + auto-categories + links (+ distillRetainInput)
-    recall.ts             # filters pre-pass → 4-arm retrieval → RRF → rerank (toggleable) → boosts → packing (+ distilledFacts/contextPack)
-    reflect.ts            # disposition verbalization, grounded answers, opinion reinforcement
-    consolidate.ts        # observations: evidence, proof counts, trends, near-dup reconciliation
-    filters.ts            # Mem0-style v2 filter DSL: evaluator + validator (+ project_id dimension)
-    evaluate.ts           # benchmark runner: cutoffs, deterministic judge, token efficiency
-    investigations.ts     # session events → Investigation (task, filesTouched, tests)
-    distillation.ts       # Investigation → DistilledFact (entity/category/confidence/importance)
-    importance.ts         # 0-100 scoring, mergeDuplicates, applyAging
-    context-pack.ts       # rankFacts (keyword/entity/graph/semantic) + 1500-token buildContextPack
-    memory-lifecycle.ts   # supersedeFacts, decayScores, consolidateNightly, withProvenance
-    decision-trace.ts     # recordTrace (hashes not raw), scoreAcceptance
-    temporal-version.ts   # preferLatestVersion per entity
-    project-detector.ts   # auto-project detection from paths
-    auto-import.ts        # file monitoring with hash dedup
-  data/                   # seed storyline + benchmark datasets + eval question sets (sources cited in-app)
-  store.ts                # zustand + persist (v2 migration): single source of truth for the whole sandbox
+  engine/                 # retrieval/distillation/lifecycle/scoring logic
+  runtime/                # runtime contracts, auth, repositories, pipeline, store adapters
+  server/                 # server-side helpers (pg client/lifecycle, sweeper, watcher, etc.)
+  data/                   # seed datasets and benchmarks
+scripts/                  # backfill/smoke/migrations/benchmarks/ops helpers
+db/migrations/            # PostgreSQL schema migrations
+docs/                     # guides, contracts, specs, evidence, integrations
 ```
 
-**Stack:** Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · zustand · lucide-react. Charts and the node-graph canvas are dependency-free SVG.
-
-### Design tokens
-Theming is driven entirely by CSS variables (`--bg`, `--surface`, `--accent`, `--world`, `--experience`, `--observation`, `--opinion`, …) exposed through Tailwind's `@theme`. The accent hue is a single `--h` variable, which is how Settings can re-skin the whole app live.
-
----
-
-## Fusion builds (Brain-on-Top + Core 2-1-3)
-
-Additive engine layer on top of existing recall. No CanonicalRepository rewrite, no new npm deps. Full guide: [`docs/fusion-guide.md`](./docs/fusion-guide.md).
-
-**Brain-on-Top**
-- Investigations (`lib/engine/investigations.ts`): session events → Investigation. Use `buildInvestigation({ task, events })`.
-- Distillation (`lib/engine/distillation.ts`): Investigation → DistilledFact. Use `distillSession({ task, events, findings, resolution })` or `extractFacts(inv)`. Retain helper: `distillRetainInput(text, files)`.
-- Importance (`lib/engine/importance.ts`): `calculateImportance` 0-100, `mergeDuplicates` (same entity + category + overlap 0.5), `applyAging` (drops importance<15 singletons).
-- Context pack (`lib/engine/context-pack.ts`): `rankFacts(query, facts, { links, semanticWeight })`, `buildContextPack({ task, query, facts, maxTokens: 1500 })`. Hard 1500-token cap.
-- Recall wire: pass `distilledFacts` into `recall()`, read `res.contextPack`. MCP 6th tool `context_pack` takes { task, query, facts JSON }.
-
-**Core 2-1-3**
-- Lifecycle (`lib/engine/memory-lifecycle.ts`): `supersedeFacts` (contradicted facts collapse, newer wins), `decayScores` (time decay with 80-floor for high-value), `consolidateNightly(investigations)` (one domain fact with provenance), `withProvenance`.
-- Retrieval upgrade: graph +2.5 for 1-hop neighbours (cap 3, depth 1), semantic cosine*1.5 only when keyword overlap is zero so exact always wins.
-- Decision trace (`lib/engine/decision-trace.ts`): `recordTrace({ query, task, pack, model, tokens })` stores queryHash + per-item why/contentHash/length, never raw content. `scoreAcceptance(traces)` = accepted/total.
-
-**Measured on this branch**: retrieval top-1 67% → 83% (6-query probe), dedup 10→6, pack 9930→1324 tokens (87% compressed), distill 6 events→1 fact (45% smaller), supersede 2→1, stale decay 40→15 with fresh held at 100, trace 0 PII leaks. Suite 397 pass / 6 skip, tsc clean, build ok.
-
-**Project automation**: `project-detector.ts` infers project from paths and auto-creates banks, `auto-import.ts` monitors files with hash dedup (toggle in sandbox Settings), `project_id` filter dimension auto-applied with cross-project guard.
-
----
+**Stack:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Zustand, PostgreSQL (`pg`), Zod. Some charts/canvas views are dependency-free SVG implementations.
 
 ## Sources & inspiration
-
 | Source | Used for |
 |---|---|
-| [Hindsight Technical Report (arXiv:2512.12818)](https://arxiv.org/abs/2512.12818) | Four networks, retain/recall/reflect, TEMPR pipeline math (RRF, boosts, spreading activation), CARA dispositions & opinion reinforcement, LongMemEval/LoCoMo tables |
-| [ACL 2026 demo (2026.acl-demo.27)](https://aclanthology.org/2026.acl-demo.27/) | System framing, schemas, demo flow (inspection → retrieval walkthrough → opinion evolution → benchmark explorer) |
-| [hindsight.vectorize.io](https://hindsight.vectorize.io/) docs (Recall / Observations pages) | UI structure & design language, recall tuning tables, observation consolidation lifecycle, dedup thresholds, scopes & strategies, headline benchmark figures |
-| [UMA (arXiv:2602.18493)](https://arxiv.org/abs/2602.18493) | Continuous Learning app: CRUD memory bank, core memory, Task-Stratified GRPO explainer, Ledger-QA horizons |
-| [Agent Memory systems characterization (arXiv:2606.06448)](https://arxiv.org/abs/2606.06448) | Benchmarks app: paradigm taxonomy, construction/energy tables, frontier scatter |
+| [Hindsight Technical Report (arXiv:2512.12818)](https://arxiv.org/abs/2512.12818) | Four-network memory framing, retain/recall/reflect concepts, retrieval/ranking ideas |
+| [ACL 2026 demo (2026.acl-demo.27)](https://aclanthology.org/2026.acl-demo.27/) | System/demo framing |
+| [hindsight.vectorize.io](https://hindsight.vectorize.io/) | UI/interaction inspiration and documented behavior concepts |
+| [UMA (arXiv:2602.18493)](https://arxiv.org/abs/2602.18493) | Continuous learning concepts referenced in sandbox experiences |
+| [Agent Memory systems characterization (arXiv:2606.06448)](https://arxiv.org/abs/2606.06448) | Benchmark characterization context |
 
-This project is **not affiliated with Vectorize.io**. It re-displays published benchmark figures for study and re-implements the described architecture as an in-browser simulation with original code and copy. The real, production system lives at [github.com/vectorize-io/hindsight](https://github.com/vectorize-io/hindsight).
+This project is **not affiliated with Vectorize.io**. It re-implements/re-presents concepts and published figures for study and experimentation with original code and copy where applicable. Upstream production system: [github.com/vectorize-io/hindsight](https://github.com/vectorize-io/hindsight).
 
 ## License
-
 MIT — see [LICENSE](./LICENSE).
