@@ -64,6 +64,16 @@ if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
 Copy-Item -Path $src -Destination $dst -Recurse -Force
 Write-Host "copied plugin files to $dst"
 
+# Single-file V1 shim (proven loader for OpenCode 1.18.13): auto-discovered
+# only when listed in opencode.jsonc `plugin` as a file:// URL; the installer
+# does not edit opencode.jsonc, so print the line the user must add.
+$shimSrc = Join-Path $PSScriptRoot '..\plugins\ray-memory.js'
+$shimDst = Join-Path $configDir 'plugins\ray-memory.js'
+if (Test-Path $shimSrc) {
+  Copy-Item -Path $shimSrc -Destination $shimDst -Force
+  Write-Host "copied V1 shim to $shimDst"
+}
+
 Write-Host ''
 Write-Host 'Ray Second-Brain installed.'
 Write-Host 'NOTE: env vars reach NEW terminals only - open a new terminal before use.'

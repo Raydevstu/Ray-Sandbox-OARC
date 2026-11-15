@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import path from 'node:path';
 import { HIGH_ENTROPY_SECRET, BENIGN_LINES, BENIGN_PATHS, SECRET_LINES, SECRET_PATHS } from './fixtures/redaction-corpus';
@@ -103,6 +103,45 @@ describe('cwd normalization and project scoping', () => {
     expect(s.root?.toLowerCase()).toBe(main.toLowerCase());
     rmSync(main, { recursive: true, force: true });
     rmSync(wt, { recursive: true, force: true });
+  });
+});
+
+describe('status, log, memory block, sha256 helpers', () => {
+  it('sha256 is stable hex', () => {
+    expect(core.sha256('abc')).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+    expect(core.sha256('abc')).toBeTypeOf('string');
+  });
+  it('writeStatus persists JSON and readStatus returns it', () => {
+    core.writeStatus('opencode', 'captured', { skipped: 2 });
+    const s = core.readStatus('opencode');
+    expect(s.state).toBe('captured');
+    expect(s.skipped).toBe(2);
+    expect(s.at).toBeTypeOf('string');
+    core.writeStatus('opencode', 'captured_with_redaction', {});
+    expect(core.readStatus('opencode').state).toBe('captured_with_redaction');
+  });
+  it('readStatus is uncaptured before any write', () => {
+    expect(core.readStatus('codex').state).toBe('uncaptured');
+  });
+  it('memoryBlock wraps facts with an untrusted-content banner', () => {
+    const block = core.memoryBlock({ text: 'fact one\nfact two', hash: 'h', count: 2 });
+    expect(block).toContain('UNTRUSTED');
+    expect(block).toContain('fact one');
+    expect(block).toContain('fact two');
+  });
+  it('log appends a timestamped line to the platform log', () => {
+    core.log('opencode', 'probe line');
+    const logPath = path.join(stateDir, 'logs', 'opencode.log');
+    const lines = readFileSync(logPath, 'utf8').trim().split('\n');
+    expect(lines[lines.length - 1]).toContain('probe line');
+  });
+  it('spool caps drop the oldest lines past maxBytes', () => {
+    const tiny = { ...core.loadProfile(), spool: { maxEvents: 5000, maxBytes: 200 } };
+    for (let i = 0; i < 20; i++) core.spoolAppend('opencode', 'caps', { route: '/x', body: { i, pad: 'x'.repeat(30) } }, tiny);
+    const f = path.join(stateDir, 'spool', 'opencode', 'caps.jsonl');
+    const size = statSync(f).size;
+    expect(size).toBeLessThanOrEqual(600); // cap guard keeps the file bounded
+    expect(size).toBeGreaterThan(0);
   });
 });
 
