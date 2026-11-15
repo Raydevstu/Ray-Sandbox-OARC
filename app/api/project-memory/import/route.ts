@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     let resolvedProjectId = principal.projectId ?? redactedInput.projectId;
 
     if (redactedInput.workspacePath) {
-      let workspaceBankId: string | null = null;
+      let workspaceBankIdKnown: string | null = null;
       const pool = getPgPool();
       if (pool) {
         try {
@@ -51,26 +51,32 @@ export async function POST(request: Request) {
             } catch { cwd = ''; }
             return { bankId: String(r.bank_id), cwdKey: cwd };
           });
-          workspaceBankId = findBankForCwd(known, redactedInput.workspacePath);
+          workspaceBankIdKnown = findBankForCwd(known, redactedInput.workspacePath);
         } catch {
-          workspaceBankId = null;
+          workspaceBankIdKnown = null;
         }
       }
-      if (!workspaceBankId) workspaceBankId = bankIdForCwd(redactedInput.workspacePath);
+      const workspaceBankIdDerived = bankIdForCwd(redactedInput.workspacePath);
+      const workspaceBankId = workspaceBankIdKnown ?? workspaceBankIdDerived;
+      const workspaceFromKnownMap = Boolean(workspaceBankIdKnown);
 
-      // If workspacePath resolves to a different bank than the principal is bound to,
-      // or to a different bank than explicitly requested in a conflicting way, reject.
-      if (principal.bankId && workspaceBankId !== principal.bankId) {
-        return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
+      // Reject when workspacePath resolves via a known mapping to a bank outside the
+      // authenticated/bound scope (prevents cross-project tamper). If no known
+      // mapping exists, the derived slug is advisory and must not override explicit
+      // authorized scope hints that are consistent with the principal.
+      if (workspaceFromKnownMap) {
+        if (principal.bankId && workspaceBankIdKnown !== principal.bankId) {
+          return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
+        }
+        if (!principal.bankId && redactedInput.bankId && workspaceBankIdKnown !== redactedInput.bankId) {
+          return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
+        }
+      } else {
+        if (principal.bankId && redactedInput.bankId && redactedInput.bankId !== principal.bankId) {
+          return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
+        }
       }
-      if (redactedInput.bankId && workspaceBankId !== redactedInput.bankId && principal.bankId && redactedInput.bankId !== principal.bankId) {
-        return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
-      }
-      // If principal not bound to a bank but workspace resolves to a known different bank than requested, reject tamper.
-      if (!principal.bankId && redactedInput.bankId && workspaceBankId !== redactedInput.bankId) {
-        return NextResponse.json({ ok: false, error: 'scope denied' }, { status: 403 });
-      }
-      resolvedBankId = principal.bankId ?? workspaceBankId ?? redactedInput.bankId;
+      resolvedBankId = principal.bankId ?? (workspaceFromKnownMap ? workspaceBankIdKnown! : (redactedInput.bankId ?? workspaceBankIdDerived));
     }
 
     const enforcedInput = { ...redactedInput, tenantId, bankId: resolvedBankId, ...(resolvedProjectId ? { projectId: resolvedProjectId } : {}) } as typeof redactedInput;
