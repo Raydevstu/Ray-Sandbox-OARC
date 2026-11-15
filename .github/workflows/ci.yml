@@ -21,6 +21,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test -- --reporter=dot
+      - run: node scripts/ray-automation-smoke.mjs --local
       - run: docker compose -f docker-compose.yml config --quiet
       - run: docker compose -f docker-compose.staging.yml config --quiet
 
