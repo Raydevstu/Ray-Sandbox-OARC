@@ -13,6 +13,7 @@ import {
   findBankForCwd,
 } from '../../../../../lib/server/hermes-push';
 import { structureTranscript } from '../../../../../lib/engine/chat-structure';
+import { distillSession } from '../../../../../lib/engine/distillation';
 
 // The push endpoint routes itself (cwd → bank), so callers don't carry a
 // project scope. Fall back to the sandbox scope when none is supplied.
@@ -29,17 +30,17 @@ async function scopeOrDefault(request: Request) {
 export async function POST(request: Request) {
   const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
   try {
-    const scope = await scopeOrDefault(request);
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
-    authorize(principal, 'memory:write', scope);
-
+    const scope = await scopeOrDefault(request);
     const body = await request.json().catch(() => ({}));
     const push = parsePushBody(body);
     const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
 
     const pool = getPgPool();
     if (!pool) {
-      return NextResponse.json({ ok: true, state: 'localStorage-only', data: { bankId: null, imported: 0 } });
+      // F2: honest degraded state. Nothing was persisted; success must never be
+      // reported against a missing store.
+      return apiFailure(requestId, 'memory store is not configured', 'no-store', 503, { retryable: true });
     }
     await ensureSchema();
 
@@ -64,6 +65,9 @@ export async function POST(request: Request) {
       created = true;
     }
 
+    // F2: authorization runs against the resolved bank scope, not a fallback.
+    authorize(principal, 'memory:write', { tenantId, bankId, projectId: scope.projectId });
+
     const facts = structureTranscript(push.sessionId, push.messages, bankId);
     if (facts.length === 0) {
       return NextResponse.json({ ok: true, data: { bankId, created, imported: 0 } });
@@ -71,7 +75,24 @@ export async function POST(request: Request) {
     if (push.resync) {
       await deleteChatSessionFacts(pool, tenantId, bankId, push.sessionId);
     }
-    await saveDistilledFacts(pool, tenantId, bankId, facts);
+
+    // F3: keep the raw transcript retention-eligible (raw evidence) and distill
+    // into governed facts — never store the raw transcript text as a fact.
+    const rawContent = push.messages.map((m) => `${m.role === 'assistant' ? 'Assistant' : 'User'}: ${m.content}`).join('\n');
+    await pool.query(
+      `INSERT INTO evidence (id, tenant_id, bank_id, fact_id, source, content, provenance, created_at)
+       VALUES ($1, $2, $3, $4, 'hermes-push', $5, $6, NOW())
+       ON CONFLICT (tenant_id, bank_id, id) DO NOTHING`,
+      [`hermes-push-raw-${bankId}-${push.sessionId}`, tenantId, bankId, `fact-${bankId}-${push.sessionId}`, rawContent, JSON.stringify({ source: 'hermes-push', turnId: push.sessionId, createdAt: Date.now() })]
+    );
+    const MAX_FINDING_CHARS = 300;
+    const distilled = distillSession({
+      task: `chat:${bankId}`,
+      events: facts.map((f) => ({ type: 'CHAT_TURN', timestamp: Date.now(), content: f.content.slice(0, MAX_FINDING_CHARS) })),
+      findings: facts.map((f) => f.content.slice(0, MAX_FINDING_CHARS)),
+    });
+    const stored = distilled.map((d) => ({ ...d, provenance: { source: 'hermes-push', turnId: push.sessionId, createdAt: Date.now() } }));
+    await saveDistilledFacts(pool, tenantId, bankId, stored);
     if (created) {
       await pool.query(
         `INSERT INTO evidence (id, tenant_id, bank_id, source, content, provenance, created_at)
@@ -98,7 +119,7 @@ export async function POST(request: Request) {
       messageCount: push.messages.length,
     }).catch(() => {});
     const latest = latestTs;
-    return NextResponse.json({ ok: true, data: { bankId, created, imported: facts.length, messages: push.messages.length, latest, categories: [...new Set(facts.map((f) => f.category))] } }, { status: 201 });
+    return NextResponse.json({ ok: true, data: { bankId, created, imported: stored.length, messages: push.messages.length, latest, categories: [...new Set(stored.map((f) => f.category))] } }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'push failed';
     return apiFailure(requestId, message, 'failed', 400, { retryable: true });
@@ -115,7 +136,15 @@ export async function GET(request: Request) {
     const tenantId = String(scope.tenantId ?? 'sandbox-tenant');
     const pool = getPgPool();
     if (!pool) {
-      return NextResponse.json({ ok: true, data: { connected: true, store: 'localStorage-only', banks: 0, lastPush: null, watcher: watcherStatus() } });
+      // F2: honest degraded state. The dashboard must not read "connected".
+      return NextResponse.json({
+        ok: false,
+        requestId,
+        state: 'no-store',
+        error: 'memory store is not configured',
+        retryable: true,
+        data: { connected: false, store: 'no-store', banks: 0, lastPush: null, watcher: watcherStatus() },
+      }, { status: 503 });
     }
     await ensureSchema();
     const banks = await pool.query(`SELECT COUNT(*)::int AS n FROM banks WHERE tenant_id = $1`, [tenantId]).catch(() => ({ rows: [{ n: 0 }] }));
