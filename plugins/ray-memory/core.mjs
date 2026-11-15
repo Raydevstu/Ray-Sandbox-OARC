@@ -198,7 +198,8 @@ export function stateDir() {
 
 export function loadProfile() {
   let base = {};
-  const profilePath = process.env.RAY_MEMORY_PROFILE;
+  const profilePath = process.env.RAY_MEMORY_PROFILE
+    || path.join(os.homedir(), '.config', 'opencode', 'ray-memory.env');
   if (profilePath) {
     try {
       base = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
@@ -215,8 +216,10 @@ export function loadProfile() {
     captureEnabled: base.captureEnabled ?? true,
     recallEnabled: base.recallEnabled ?? true,
     sendTimeoutMs: base.sendTimeoutMs ?? 8000,
-    recallTimeoutMs: base.recallTimeoutMs ?? 1500,
-    recallLimit: base.recallLimit ?? 8,
+    // D1 profile nests recall knobs under `recall`; flat keys stay supported.
+    recallTimeoutMs: base.recall?.timeoutMs ?? base.recallTimeoutMs ?? 1500,
+    recallMaxTokens: base.recall?.maxTokens ?? base.recallMaxTokens,
+    recallLimit: base.recall?.limit ?? base.recallLimit ?? 8,
   };
 }
 
@@ -428,8 +431,10 @@ export async function recallPack(profile, agentId, scope, query) {
     tenantId: profile.tenantId,
     bankId: scope?.bank ?? profile.bankId,
     projectId: scope?.project ?? profile.projectId,
-    limit: profile.recallLimit ?? 8,
   };
+  // Token budget from the D1 profile shape when present, else a fact count.
+  if (profile.recallMaxTokens) body.maxTokens = profile.recallMaxTokens;
+  else body.limit = profile.recallLimit ?? 8;
   if (!body.bankId || !body.projectId) return null;
   const r = await postJson(
     `${profile.endpoint}/api/v1/memory/recall`,
