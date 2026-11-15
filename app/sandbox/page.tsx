@@ -12,6 +12,7 @@ import {
 import { Badge, Card, CardHeader, Empty, Progress, Sparkline, Stat } from "@/components/ui";
 import { Donut, HBarChart, LineChart } from "@/components/charts";
 import { LiveObservabilityChart } from "@/components/oarc-v2/live-observability-chart";
+import { SecondBrainStatusCard } from "@/components/memory/SecondBrainStatusCard";
 import type { OarcSeries } from "@/lib/runtime/telemetry";
 import { useSandbox } from "@/lib/store";
 import { fmtMs, fmtNum, timeAgo, NETWORK_META } from "@/lib/utils";
@@ -93,6 +94,9 @@ export default function DashboardPage() {
         <Stat label="Recall p50" value={fmtMs(s.metrics[0]?.p50 ?? 38)} icon={<Zap size={16} />} delta={{ value: -4.5, suffix: "%" }} spark={[46, 44, 41, 43, 39, 40, 38, 37]} />
         <Stat label="Tokens stored" value={fmtNum(totalTokens)} icon={<Cpu size={16} />} spark={[800, 950, 1100, 1250, 1400, 1600, 1750, totalTokens]} />
       </div>
+
+      {/* SECOND-BRAIN status (capture-state machine, client relay, sweeper, store) */}
+      <SecondBrainStatusCard />
 
       {/* ops timeline + network mix */}
       <div className="grid lg:grid-cols-[2fr_1fr] gap-4">
