@@ -14,6 +14,7 @@ import { createRuntimeRepository, isRuntimeStoreConfigured } from '@/lib/runtime
 import { runtimeMetrics } from '@/lib/runtime/live-metrics';
 import { projectDashboardMetrics } from '@/lib/runtime/project-dashboard-metrics';
 import { recordCapture } from '@/lib/runtime/capture-status';
+import { resolveSessionScope } from '@/lib/server/session-register';
 
 const JsonRpcSchema = z.object({ jsonrpc: z.literal('2.0'), id: z.union([z.string(), z.number(), z.null()]).optional(), method: z.string(), params: z.record(z.string(), z.unknown()).optional() });
 const ContextSchema = z.object({
@@ -28,6 +29,42 @@ const ContextSchema = z.object({
 
 const protocolVersion = '2025-06-18';
 const serverInfo = { name: 'hindsight-memory-slice', version: '0.1.0' };
+
+function resolveInitializeContext(principal: Awaited<ReturnType<typeof authenticateRequest>>, params: Record<string, unknown> | undefined, request: Request) {
+  const p = (params ?? {}) as Record<string, unknown>;
+  try {
+    return ContextSchema.parse(p);
+  } catch (error) {
+    // M0/Task 10 compatibility: derive context from dev headers + session-register
+    // when custom initialize params are incomplete. Never bypass authz.
+    const meta = (p._meta ?? {}) as Record<string, unknown>;
+    const opencodeSessionId = typeof meta['ai.opencode/sessionID'] === 'string'
+      ? meta['ai.opencode/sessionID']
+      : typeof meta.sessionID === 'string' ? meta.sessionID : undefined;
+    const registered = opencodeSessionId ? resolveSessionScope(principal.tenantId, opencodeSessionId) : null;
+    const tenantId = typeof p.tenantId === 'string' ? p.tenantId : principal.tenantId || request.headers.get('x-dev-tenant-id') || registered?.tenantId;
+    const bankId = typeof p.bankId === 'string' ? p.bankId : principal.bankId || request.headers.get('x-dev-bank-id') || registered?.bankId;
+    const projectId = typeof p.projectId === 'string' ? p.projectId : principal.projectId || request.headers.get('x-dev-project-id') || registered?.projectId;
+    const provider = (p.provider === 'hermes' || p.provider === 'opencode') ? p.provider : 'opencode';
+    const agentId = typeof p.agentId === 'string' && p.agentId.trim() ? p.agentId : principal.subject || 'opencode-agent';
+    const conversationId = typeof p.conversationId === 'string' && p.conversationId.trim() ? p.conversationId : (opencodeSessionId || undefined);
+    const runId = typeof p.runId === 'string' && p.runId.trim() ? p.runId : undefined;
+    const candidate = {
+      provider,
+      agentId,
+      tenantId,
+      bankId,
+      projectId,
+      ...(conversationId ? { conversationId } : {}),
+      ...(runId ? { runId } : {}),
+    };
+    try {
+      return ContextSchema.parse(candidate);
+    } catch {
+      throw error;
+    }
+  }
+}
 
 function rpc(id: string | number | null | undefined, result: unknown, status = 200, sessionId?: string) {
   const headers = new Headers({ 'MCP-Protocol-Version': protocolVersion });
@@ -52,7 +89,7 @@ export async function POST(request: Request) {
   try {
     const principal = await authenticateRequest(request, parseRuntimeConfig(process.env));
     if (body.method === 'initialize') {
-      const context = ContextSchema.parse(body.params ?? {});
+      const context = resolveInitializeContext(principal, body.params, request);
       authorize(principal, 'memory:read', { tenantId: context.tenantId, bankId: context.bankId });
       authorizeProject(principal, context);
       return rpc(body.id, { protocolVersion, capabilities: { tools: {} }, serverInfo }, 200, createMcpSession(principal, context));
@@ -65,6 +102,14 @@ export async function POST(request: Request) {
     if (body.method !== 'tools/call') return rpcError(body.id, -32601, 'Method not found', 200, session.id);
 
     const params = body.params ?? {};
+    // Optional dynamic scope hint from OpenCode session metadata (never authz).
+    const meta = (params as Record<string, unknown>)._meta as Record<string, unknown> | undefined;
+    const opencodeSessionId = typeof meta?.['ai.opencode/sessionID'] === 'string'
+      ? meta['ai.opencode/sessionID']
+      : typeof meta?.sessionID === 'string' ? meta.sessionID : undefined;
+    if (opencodeSessionId) {
+      resolveSessionScope(session.context.tenantId, opencodeSessionId);
+    }
     const name = z.string().parse(params.name);
     const args = z.record(z.string(), z.unknown()).parse(params.arguments ?? {});
     const startedAt = performance.now();

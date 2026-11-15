@@ -9,7 +9,7 @@ import { persistCodexProjectEvent } from '@/lib/runtime/codex-ingestion';
 import { recordCapture, getCaptureStatus } from '@/lib/runtime/capture-status';
 import { redactIncoming } from '@/lib/server/redaction';
 
-const platforms = ['codex', 'hermes', 'openai-api', 'chatgpt', 'claude', 'gemini', 'cursor', 'terminal', 'opencode', 'vscode'] as const;
+const platforms = ['codex', 'hermes', 'openai-api', 'chatgpt', 'claude', 'gemini', 'cursor', 'terminal', 'opencode', 'vscode', 'browser'] as const;
 const MessageSchema = z.record(z.string(), z.unknown());
 const EnvelopeSchema = z.object({ tenantId: z.string().min(1), bankId: z.string().min(1), projectId: z.string().min(1).optional(), workspaceId: z.string().min(1).optional(), workspacePath: z.string().min(1).optional(), platform: z.enum(platforms), conversationId: z.string().min(1), exportedAt: z.string().datetime(), sourceReference: z.string().min(1), messages: z.array(MessageSchema).min(1) }).strict();
 

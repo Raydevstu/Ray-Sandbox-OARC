@@ -1,7 +1,7 @@
 import { stableId } from './contracts';
 import type { ConversationEvent, MemoryScope, ProjectEvent } from './contracts';
 
-export type ImportPlatform = 'codex' | 'hermes' | 'openai-api' | 'chatgpt' | 'claude' | 'gemini' | 'cursor' | 'terminal' | 'opencode' | 'vscode';
+export type ImportPlatform = 'codex' | 'hermes' | 'openai-api' | 'chatgpt' | 'claude' | 'gemini' | 'cursor' | 'terminal' | 'opencode' | 'vscode' | 'browser';
 export type ImportEnvelope = Readonly<{ projectId?: string; workspaceId?: string; workspacePath?: string; platform: ImportPlatform; conversationId: string; exportedAt: string; sourceReference: string; messages: readonly Readonly<Record<string, unknown>>[] }>;
 export type CaptureGap = Readonly<{ platform: ImportPlatform; projectId: string; reason: 'export_unavailable' | 'connector_unavailable' | 'invalid_export'; sourceReference?: string }>;
 export type ImportResult = Readonly<{ events: readonly ProjectEvent[]; gaps: readonly CaptureGap[] }>;
