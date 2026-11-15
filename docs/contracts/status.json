@@ -1,0 +1,9 @@
+{
+  "endpoint": "GET /api/project-memory/status",
+  "verifiedAt": "2026-11-15T15:00Z",
+  "notes": "In-process capture-status counters (capture-status.ts getCaptureStatus). Global, not per-project or per-agent — per-project/per-agent breakdown is Task 13 work.",
+  "response": {
+    "ok": true,
+    "data": { "received": 2, "normalized": 2, "persisted": 2, "queued": 2, "processed": 2, "failed": 0, "state": "processed", "lastEventAt": "2026-11-15T15:00:55.925Z", "lastMessageId": "message-2" }
+  }
+}

@@ -218,9 +218,17 @@ Browser extension + ChatGPT custom-GPT Actions / scheduled export, same import e
 
 ## 8. Open questions for the builder (reduced; answered by M0 probes)
 
+**M0-4 answers (verified live 2026-11-15, contracts in `docs/contracts/`):**
+
+1. **Header names (corrects D7 and the M0 checklist):** the dev principal header is **`x-dev-subject`** (`lib/runtime/auth/principal.ts:12`), not `x-dev-principal`; `x-dev-allowed-project-ids` is **comma-separated** (`principal.ts:17`). Optional `x-dev-bank-id` / `x-dev-project-id` constrain the principal.
+2. **Recall contract:** `readProjectScope` requires `tenantId`+`bankId`+`projectId` together (body or headers; `api-handlers.ts:47-57`) — missing any one is a 403. Body field is `bankId` (not `bank_id`); `limit` or `maxTokens` accepted. Postgres path returns `data.facts[]` (`entity/category/content/confidence/importance/occurrences`) ranked from the `facts` table — **there is no `contextPack` field**; `core.recallPack` joins `facts[].content` lines.
+3. **Import contract:** envelope is `z.strict()` and requires `tenantId`, `bankId`, `exportedAt` (ISO), `sourceReference` (min 1), `messages[]`. Persists to **`project_events`** (`ConversationImported` + `ProjectWorkerCompleted`).
+4. **Open question 3 answered — CRITICAL GAP:** the import pipeline does **NOT** produce distilled facts (verified: `distilled_facts` count 0 after a verified import; worker completes in ~8 ms; `facts` untouched). Recall reads `facts`, so imported conversations are **invisible to recall** until an import→distill→facts bridge exists. Task 8's "same import/distill pipeline" therefore includes building that bridge.
+5. **Live evidence for F3:** existing `secondbrainog` recall results are full tool outputs and file dumps stored as facts — the raw-transcript-as-fact problem is already in production data.
+6. **Store truth:** hermes-push GET reports `store:"postgres"`, connected, 28 banks; pushes arriving today. M0-2 PASS.
+
 1. Which plugin API generation does 1.18.13 expose — server `ctx.session.hook` or legacy V1? (Adapter decides at runtime; probe M0-6.)
 2. Does Codex 0.147.0 `SessionStart` support context append? (Fallback ladder in D4 covers either answer; probe M0-7.)
-3. Does `/api/project-memory/import` run the async distiller for `platform:"opencode"` end-to-end? (Probe M0-4; D3 fix depends on it.)
 4. Dashboard card placement/UX. (Builder's call.)
 
 The M0 checklist and implementation skeletons (shared core, Codex hook, OpenCode plugin) live in `2026-11-15-second-brain-m0-checklist.md` alongside this doc; `VERIFY(M0-n)` markers in the skeletons map to checklist items.

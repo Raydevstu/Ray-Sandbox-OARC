@@ -1,0 +1,25 @@
+{
+  "endpoint": "POST /api/v1/memory/recall",
+  "verifiedAt": "2026-11-15T15:05Z",
+  "request": {
+    "query": "m0 probe contract",
+    "tenantId": "sandbox-tenant",
+    "bankId": "secondbrainog",
+    "projectId": "SECOND-BRAIN",
+    "limit": 10
+  },
+  "notes": [
+    "readProjectScope REQUIRES tenantId+bankId+projectId together — in the body OR via x-dev-tenant-id/x-dev-bank-id/x-dev-project-id headers (api-handlers.ts:47-57). Missing any one => 403 ('invalid runtime project scope').",
+    "Field is `bankId`, NOT bank_id (route.ts:33).",
+    "limit OR maxTokens accepted (maxTokens/100 => limit) (route.ts:35).",
+    "Postgres path returns data.facts ranked from `facts` table, NOT a contextPack."
+  ],
+  "response": {
+    "ok": true,
+    "data": {
+      "facts": [{ "entity": "...", "category": "...", "content": "...(claim text)...", "confidence": 0.7, "importance": 65, "occurrences": 1 }],
+      "traceId": "pg-1794754883066"
+    }
+  },
+  "injectionMapping": "core.recallPack joins data.facts[].content lines; there is no contextPack/context_pack field"
+}

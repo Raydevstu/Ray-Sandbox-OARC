@@ -1,0 +1,25 @@
+{
+  "endpoint": "POST /api/project-memory/codex-event",
+  "verifiedAt": "2026-11-15",
+  "schema": {
+    "tenantId": "string REQUIRED",
+    "bankId": "string REQUIRED",
+    "projectId": "string REQUIRED",
+    "conversationId": "string REQUIRED",
+    "messageId": "string REQUIRED",
+    "timestamp": "ISO datetime REQUIRED",
+    "kind": "'mcp-call' | 'tool-result' REQUIRED",
+    "method": "optional (mcp-call, default tools/call)",
+    "name": "optional tool name",
+    "role": "'user'|'assistant'|'tool'|'system' optional (default user)",
+    "content": "optional string",
+    "arguments": "optional record (mcp-call)",
+    "result": "optional unknown (tool-result)"
+  },
+  "response": { "ok": true, "data": { "eventId": "...", "duplicate": false, "queued": true, "capture": {} } },
+  "notes": [
+    "Persists to project_events via persistCodexProjectEvent (same pipeline as import).",
+    "503 'canonical store is not configured' when runtime store unset.",
+    "agentId is conveyed by the x-dev-subject header, not a body field."
+  ]
+}

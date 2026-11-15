@@ -1,0 +1,44 @@
+{
+  "endpoint": "POST /api/project-memory/import",
+  "verifiedAt": "2026-11-15T15:00Z",
+  "headers": {
+    "x-dev-subject": "agent id (REQUIRED — principal.ts:12; NOT x-dev-principal)",
+    "x-dev-tenant-id": "tenant (REQUIRED)",
+    "x-dev-scopes": "space-separated permissions (REQUIRED)",
+    "x-dev-bank-id": "optional principal bank constraint",
+    "x-dev-project-id": "optional principal project constraint",
+    "x-dev-allowed-project-ids": "COMMA-separated (principal.ts:17) — hint only"
+  },
+  "request": {
+    "tenantId": "sandbox-tenant",
+    "bankId": "secondbrainog",
+    "projectId": "SECOND-BRAIN",
+    "workspacePath": "D:\\Projects\\Secondosaistudioog",
+    "platform": "opencode",
+    "conversationId": "m0-probe-20261115",
+    "exportedAt": "2026-11-15T15:00:55.925Z (ISO datetime REQUIRED)",
+    "sourceReference": "m0-contract-probe (REQUIRED, min length 1)",
+    "messages": [{ "role": "user", "content": "..." }]
+  },
+  "notes": [
+    "Envelope is z.strict() — unknown keys are rejected.",
+    "Message content key: content | text | content.text (cross-platform-import.ts:11).",
+    "Role fallback is 'assistant' (cross-platform-import.ts:10).",
+    "Verified response: ok=true, imported=2, accepted=2, capture.state=processed."
+  ],
+  "response": {
+    "ok": true,
+    "data": {
+      "platform": "opencode",
+      "projectId": "SECOND-BRAIN",
+      "imported": 2,
+      "accepted": 2,
+      "capture": { "received": 2, "normalized": 2, "persisted": 2, "queued": 2, "processed": 2, "failed": 0, "state": "processed" }
+    }
+  },
+  "persistence": {
+    "table": "project_events (NOT events, NOT facts, NOT distilled_facts)",
+    "eventTypes": ["ConversationImported", "ProjectWorkerCompleted"],
+    "CRITICAL_GAP": "Import pipeline does NOT produce distilled facts (verified M0-4: distilled_facts count 0 after import; worker completes ~8ms). Recall reads `facts` — imported conversations are invisible to recall until a distill bridge exists. Task 8 scope must include this bridge."
+  }
+}
