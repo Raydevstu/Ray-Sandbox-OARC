@@ -10,6 +10,8 @@ import { recordCapture, getCaptureStatus } from '@/lib/runtime/capture-status';
 import { redactIncoming } from '@/lib/server/redaction';
 import { getPgPool, ensureSchema } from '@/lib/server/pg-client';
 import { bankIdForCwd, findBankForCwd } from '@/lib/server/hermes-push';
+import { distillSession } from '@/lib/engine/distillation';
+import { saveDistilledFacts } from '@/lib/server/pg-lifecycle';
 
 const platforms = ['codex', 'hermes', 'openai-api', 'chatgpt', 'claude', 'gemini', 'cursor', 'terminal', 'opencode', 'vscode', 'browser'] as const;
 const MessageSchema = z.record(z.string(), z.unknown());
@@ -100,6 +102,43 @@ export async function POST(request: Request) {
       if (result.queued) recordCapture('queued', conversation?.messageId, conversation?.timestamp ?? event.occurredAt);
       else if (!result.duplicate) recordCapture('failed', conversation?.messageId, conversation?.timestamp ?? event.occurredAt);
     }
+
+    // Bridge: make imported conversations recall-visible. Recall's Postgres path
+    // reads canonical distilled `facts`, while project-memory import persists
+    // source events/project-memory records. Distill accepted conversation content
+    // into `facts` (idempotent via factIdFor upsert) so backfill/import recall works.
+    try {
+      const pool = getPgPool();
+      if (pool && accepted > 0) {
+        await ensureSchema();
+        const MAX_FINDING_CHARS = 500;
+        const lines = imported.events.map((event) => {
+          const c = event.payload.conversation as { role?: string; content?: string } | undefined;
+          const role = c?.role ?? 'assistant';
+          const content = typeof c?.content === 'string' ? c.content : '';
+          return `${role}: ${content}`;
+        }).filter((l) => l.trim().length > 0);
+        if (lines.length > 0) {
+          const findings = lines.map((l) => l.slice(0, MAX_FINDING_CHARS));
+          const task = `${String(input.platform)} import: ${String(input.conversationId)} (${String(input.sourceReference)}). ${findings[0]?.slice(0, 160) ?? ''}`.slice(0, 500);
+          const distilled = distillSession({
+            task,
+            events: findings.map((content) => ({ type: 'FILE_VIEWED' as const, file: String(input.workspacePath ?? input.projectId ?? 'import'), timestamp: Date.now(), content })),
+            findings,
+            resolution: '',
+          });
+          const stored = distilled.map((d) => ({
+            ...d,
+            provenance: { source: `import:${String(input.platform)}`, turnId: String(input.conversationId), createdAt: Date.now() } as any,
+          }));
+          await saveDistilledFacts(pool, tenantId, resolvedBankId, stored as any);
+        }
+      }
+    } catch (distillError) {
+      // Best-effort bridge: do not fail a successful event import if fact distillation fails.
+      console.warn('import distill-to-facts bridge failed:', distillError);
+    }
+
     return NextResponse.json({ ok: true, data: { platform: input.platform as ImportPlatform, projectId: imported.events[0]?.projectId, imported: imported.events.length, accepted, capture: getCaptureStatus() } });
   } catch (error) {
     recordCapture('failed');

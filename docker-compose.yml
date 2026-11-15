@@ -42,6 +42,9 @@ services:
       APEX_NIGHTLY: "true"
       PROJECTS_ROOT: "/projects"
       HERMES_STATE_DB: "/hermes-state.db"
+      APEX_AUDIT_TENANT_ID: "sandbox-tenant"
+      APEX_AUDIT_BANK_ID: "secondbrainog"
+      APEX_AUDIT_PROJECT_ID: "SECOND-BRAIN"
     depends_on:
       postgres:
         condition: service_healthy
