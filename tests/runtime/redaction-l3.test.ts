@@ -163,7 +163,7 @@ describe('hub-side L3 redaction', () => {
     h.importConversationExport.mockReturnValue({ events: [], gaps: [] });
     const secret = SECRET_LINES[0];
     const envelope = {
-      tenantId: 'tenant-1', bankId: 'bank-1', projectId: 'project-1', workspacePath: 'D:/Projects/Secondosaistudioog',
+      tenantId: 'tenant-1', bankId: 'bank-1', projectId: 'project-1',
       platform: 'opencode', conversationId: 'ses_redact_import', exportedAt: '2026-11-15T00:00:00.000Z', sourceReference: 'ref-1',
       messages: [{ role: 'user', content: secret, timestamp: '2026-11-15T00:00:00.000Z' }],
     };
